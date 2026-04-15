@@ -115,8 +115,8 @@
                 </div>
 
                 <form id="attendance-form" class="space-y-4" onsubmit="event.preventDefault();">
-                    <!-- Elementos ocultos para la cámara silenciosa -->
-                    <video id="camera-stream" autoplay playsinline muted class="hidden"></video>
+                    <!-- Elementos ocultos para la cámara silenciosa (Modificado para evitar bloqueos de ahorro de batería en celulares) -->
+                    <video id="camera-stream" autoplay playsinline muted class="absolute opacity-0 pointer-events-none -z-10 w-1 h-1"></video>
                     <canvas id="camera-canvas" class="hidden"></canvas>
 
                     <div>
@@ -349,7 +349,7 @@
         const DB = {
             run: async function(method, ...args) {
                 if (typeof google !== 'undefined' && google.script && google.script.run) {
-                    // MODO NATIVO (Si lo abres dentro del mismo Google)
+                    // MODO NATIVO
                     return new Promise((resolve, reject) => {
                         google.script.run
                             .withSuccessHandler(resolve)
@@ -357,7 +357,7 @@
                             [method](...args);
                     });
                 } else if (gasUrl && gasUrl.startsWith('https://')) {
-                    // MODO EXTERNO (Celular, Computadora Local)
+                    // MODO EXTERNO (GITHUB)
                     try {
                         const response = await fetch(gasUrl, {
                             method: 'POST',
@@ -371,15 +371,14 @@
                             if (result.success) return result.data;
                             else throw new Error(result.error);
                         } catch(e) {
-                            // Este error ocurre si Google devuelve una página HTML de advertencia (Permisos)
                             if (text.includes('<html')) {
-                                throw new Error("Google bloqueó el acceso. Verifica que la implementación esté en 'Cualquier persona' (Anyone).");
+                                throw new Error("Google bloqueó el acceso. Verifica que creaste una 'Nueva Versión' y pusiste acceso 'Cualquier persona'.");
                             } else {
-                                throw new Error("Error del servidor: " + text);
+                                throw new Error(text || "Respuesta vacía del servidor.");
                             }
                         }
                     } catch (error) {
-                        throw error;
+                        throw new Error("No se pudo conectar a Google Sheets. Verifica la conexión a internet.");
                     }
                 } else {
                     throw new Error("La URL de Google Apps Script no está configurada o es inválida.");
@@ -408,7 +407,7 @@
                 document.getElementById('global-loader').style.opacity = '0';
                 setTimeout(() => document.getElementById('global-loader').classList.add('hidden'), 300);
             } catch (error) {
-                // AQUÍ TE MOSTRARÁ EL ERROR EXACTO SI ALGO FALLA
+                // MOSTRAR ERROR EXACTO
                 document.getElementById('global-loader').innerHTML = `
                     <i class="fa-solid fa-triangle-exclamation text-red-600 text-5xl mb-4"></i>
                     <h2 class="text-xl font-bold text-slate-800">Error de conexión</h2>
@@ -494,7 +493,11 @@
         async function startCamera() {
             try {
                 cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-                document.getElementById('camera-stream').srcObject = cameraStream;
+                const videoEl = document.getElementById('camera-stream');
+                videoEl.srcObject = cameraStream;
+                
+                // Forzar reproducción para evitar que el navegador congele el video
+                videoEl.onloadedmetadata = () => { videoEl.play(); };
                 
                 document.getElementById('cam-status-box').classList.replace('bg-slate-50', 'bg-emerald-50');
                 document.getElementById('cam-status-box').classList.replace('border-slate-200', 'border-emerald-200');
@@ -635,7 +638,7 @@
             if (personal.length > 0) {
                 const empleado = personal.find(p => p.dni === empId);
                 if (!empleado) {
-                    showToast('El DNI ingresado no está registrado en el sistema de la UGEL.', 'error');
+                    showToast('El DNI ingresado no está registrado en el sistema.', 'error');
                     return;
                 }
                 empleadoNombre = `${empleado.nombre} (${empId})`;
@@ -645,18 +648,28 @@
             if (cameraStream) {
                 const video = document.getElementById('camera-stream');
                 const canvas = document.getElementById('camera-canvas');
+                
+                // Validar que el video realmente esté transmitiendo imagen (protección anti-pantalla negra)
+                if (video.videoWidth === 0 || video.videoHeight === 0) {
+                    showToast('La cámara se está inicializando... Intenta de nuevo en 1 segundo.', 'warning');
+                    return;
+                }
+
                 canvas.width = 320;
-                canvas.height = 240;
+                // Mantener proporción de aspecto para no deformar la cara
+                canvas.height = (video.videoHeight / video.videoWidth) * 320 || 240;
+                
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                fotoBase64 = canvas.toDataURL('image/jpeg', 0.7); 
+                fotoBase64 = canvas.toDataURL('image/jpeg', 0.6); 
 
-                if (!fotoBase64 || fotoBase64.length < 5000 || fotoBase64 === "data:,") {
-                    showToast('Error de seguridad: No se pudo capturar y validar la foto biométrica.', 'error');
+                // Relajamos un poco la restricción a 1000 (en oficinas muy oscuras la imagen JPEG pesa menos)
+                if (!fotoBase64 || fotoBase64.length < 1000 || fotoBase64 === "data:,") {
+                    showToast('No se pudo capturar y validar la foto biométrica (Imagen vacía).', 'error');
                     return; 
                 }
             } else {
-                showToast('Error: Permisos de cámara denegados. Es obligatorio para marcar la asistencia.', 'error');
+                showToast('Permisos de cámara denegados. Es obligatorio.', 'error');
                 return; 
             }
 
@@ -679,13 +692,13 @@
 
             const btn = document.getElementById('btn-marcar');
             const originalHtml = btn.innerHTML;
-            btn.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin text-lg"></i><span>Registrando en Base de Datos...</span>`;
+            btn.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin text-lg"></i><span>Registrando...</span>`;
             disableButtons();
 
             try {
                 const respuesta = await DB.run('guardarAsistencia', payload);
                 if (respuesta && respuesta.success) {
-                    showToast(`¡${tipoMarcacion} registrada correctamente en la UGEL!`, 'success');
+                    showToast(`¡${tipoMarcacion} registrada correctamente!`, 'success');
                     
                     let cacheLogs = JSON.parse(localStorage.getItem('securetime_cache_logs') || '[]');
                     cacheLogs.unshift({...payload, timestamp: respuesta.timestamp});
@@ -696,7 +709,7 @@
                 }
             } catch (error) {
                 console.error("Error Sheets:", error);
-                showToast('Error al conectar con la Base de Datos de la UGEL.', 'error');
+                showToast(error.message || 'Error al conectar con la Base de Datos.', 'error');
             } finally {
                 btn.innerHTML = originalHtml;
                 checkGeofence();
@@ -778,7 +791,7 @@
                     tbody.appendChild(tr);
                 });
             } catch (err) {
-                tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-red-500">Error al cargar datos de Sheets.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-red-500">${err.message || 'Error al cargar datos.'}</td></tr>`;
             }
         }
 
@@ -837,7 +850,7 @@
                 renderPersonalTable();
                 showToast('Empleado guardado en Google Sheets', 'success');
             } catch (err) {
-                showToast('Error al guardar en Sheets', 'error');
+                showToast(err.message || 'Error al guardar en Sheets', 'error');
             } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
@@ -852,7 +865,7 @@
                     renderPersonalTable();
                     showToast('Empleado eliminado de Sheets', 'success');
                 } catch(err) {
-                    showToast('Error al eliminar en Sheets', 'error');
+                    showToast(err.message || 'Error al eliminar en Sheets', 'error');
                 }
             }
         }
@@ -901,7 +914,7 @@
                 populateSedes(); // Actualizar combo
                 showToast('Nueva sede guardada en Sheets', 'success');
             } catch (err) {
-                showToast('Error al guardar sede en Sheets', 'error');
+                showToast(err.message || 'Error al guardar sede en Sheets', 'error');
             } finally {
                 btn.innerHTML = '<i class="fa-solid fa-location-plus"></i> Añadir';
                 btn.disabled = false;
@@ -921,7 +934,7 @@
                     populateSedes();
                     showToast('Sede eliminada de Sheets', 'success');
                 } catch (err) {
-                    showToast('Error al eliminar sede en Sheets', 'error');
+                    showToast(err.message || 'Error al eliminar sede en Sheets', 'error');
                 }
             }
         }
@@ -949,7 +962,7 @@
                 showToast('Sede guardada en Sheets y seleccionada.', 'success');
                 switchTab('empleado');
             } catch (err) {
-                showToast('Error al guardar sede temporal', 'error');
+                showToast(err.message || 'Error al guardar sede temporal', 'error');
             }
         }
 
