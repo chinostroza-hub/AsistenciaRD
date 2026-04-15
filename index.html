@@ -131,7 +131,8 @@
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <i class="fa-regular fa-id-badge text-slate-400 text-sm"></i>
                             </div>
-                            <input type="text" id="emp-id" required class="block w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition-shadow" placeholder="DNI / Código de Empleado" oninput="verifyEmployee()">
+                            <!-- APLICAMOS RESTRICCIÓN DE 8 DÍGITOS ESTRICTA -->
+                            <input type="text" id="emp-id" required maxlength="8" class="block w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition-shadow" placeholder="DNI (8 dígitos)" oninput="this.value = this.value.replace(/[^0-9]/g, ''); verifyEmployee();">
                         </div>
                         <p id="emp-name-display" class="text-[11px] mt-1 font-medium hidden"></p>
                     </div>
@@ -396,28 +397,28 @@
             const btn = document.getElementById(`tab-${tabId}`);
             btn.classList.remove('text-slate-500'); btn.classList.add('text-red-600', 'bg-red-50');
 
-            if(tabId === 'rrhh') {
-                if(sessionStorage.getItem('rrhh_logged')) {
-                    document.getElementById('rrhh-login').classList.add('hidden');
-                    document.getElementById('rrhh-dashboard').classList.remove('hidden');
-                    document.getElementById('rrhh-dashboard').style.display = 'flex';
-                    loadLocalLogs(); renderPersonalTable(); renderSedesTable();
-                } else {
-                    document.getElementById('rrhh-login').classList.remove('hidden');
-                    document.getElementById('rrhh-dashboard').classList.add('hidden');
-                    document.getElementById('rrhh-dashboard').style.display = 'none';
-                }
+            if(tabId === 'rrhh' && sessionStorage.getItem('rrhh_logged')) {
+                document.getElementById('rrhh-login').classList.add('hidden');
+                document.getElementById('rrhh-dashboard').classList.remove('hidden');
+                document.getElementById('rrhh-dashboard').style.display = 'flex';
+                loadLocalLogs(); renderPersonalTable(); renderSedesTable();
             }
         }
 
         function verifyEmployee() {
             const empId = document.getElementById('emp-id').value.trim();
             const displayEl = document.getElementById('emp-name-display');
-            if (!empId) { displayEl.classList.add('hidden'); return; }
+            
+            // Ocultar si no son 8 dígitos exactos
+            if (empId.length !== 8) { displayEl.classList.add('hidden'); return; }
+            
             if (personal.length > 0) {
                 const empleado = personal.find(p => p.dni === empId);
                 if (empleado) {
-                    displayEl.textContent = `👤 Empleado: ${empleado.nombre}`;
+                    // CAMUFLAJE DE NOMBRE (Solo 3 letras por palabra)
+                    const maskedName = empleado.nombre.split(' ').map(w => w.length > 3 ? w.substring(0,3) + '***' : w + '***').join(' ');
+                    
+                    displayEl.textContent = `👤 Empleado: ${maskedName}`;
                     displayEl.classList.remove('hidden', 'text-red-500'); displayEl.classList.add('text-blue-600');
                 } else {
                     displayEl.textContent = `❌ DNI no registrado.`;
@@ -510,7 +511,8 @@
             const empId = document.getElementById('emp-id').value.trim();
             const sedeId = document.getElementById('emp-sede').value;
 
-            if(!empId) { showToast('Por favor ingresa tu DNI', 'error'); return; }
+            // Bloqueo de seguridad si el DNI no es exacto
+            if(empId.length !== 8) { showToast('El DNI debe tener 8 dígitos exactos', 'error'); return; }
 
             const empleadoData = personal.find(p => p.dni === empId);
             if (!empleadoData) { showToast('DNI no registrado.', 'error'); return; }
