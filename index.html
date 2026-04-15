@@ -17,11 +17,17 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        /* CONFIGURACIÓN ESTRICTA SIN SCROLL PARA PANTALLA COMPLETA NATIVA */
         body {
             font-family: 'Inter', sans-serif;
             background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
-            min-height: 100vh;
-            overscroll-behavior-y: contain;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden; /* Bloquea todo el scroll vertical y horizontal */
+            overscroll-behavior: none;
+            touch-action: none; /* Previene gestos del navegador */
         }
         .glass-card {
             background: rgba(255, 255, 255, 0.85);
@@ -29,17 +35,7 @@
             border: 1px solid rgba(255, 255, 255, 0.5);
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
         }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         
-        .pulse-dot { animation: pulse 2s infinite; }
-        @keyframes pulse {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
-            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
-        }
         .toast-enter { animation: slideIn 0.3s ease-out forwards; }
         .toast-leave { animation: slideOut 0.3s ease-in forwards; }
         @keyframes slideIn { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -48,15 +44,41 @@
 </head>
 <body class="text-slate-800 antialiased flex flex-col">
 
-    <!-- Pantalla de Carga Global -->
-    <div id="global-loader" class="fixed inset-0 bg-white/95 backdrop-blur-sm z-50 flex flex-col items-center justify-center transition-opacity duration-300 p-6 text-center">
-        <i class="fa-solid fa-cloud-arrow-down text-blue-600 text-5xl mb-4 animate-bounce"></i>
-        <h2 class="text-xl font-bold text-slate-800">Conectando a la Base de Datos...</h2>
-        <p class="text-sm text-slate-500 mt-2">Sincronizando Sedes y Personal de la UGEL SBBA</p>
+    <!-- Bloqueo para Computadoras (Solo Móviles) -->
+    <div id="desktop-blocker" class="fixed inset-0 bg-slate-900 z-[9999] hidden flex-col items-center justify-center p-6 text-center text-white">
+        <i class="fa-solid fa-mobile-screen-button text-7xl mb-6 text-blue-400 animate-pulse"></i>
+        <h2 class="text-3xl font-bold mb-3">Acceso Denegado</h2>
+        <p class="text-slate-300 max-w-md text-lg">Este sistema de asistencia está diseñado exclusivamente para ejecutarse en <b>teléfonos móviles</b> (Android o iPhone) por motivos de seguridad, GPS y biometría.</p>
+        <p class="text-slate-500 mt-8 text-sm">Por favor, abre el enlace desde tu celular.</p>
+    </div>
+
+    <!-- Pantalla de Carga Animada (0 al 100%) -->
+    <div id="global-loader" class="fixed inset-0 bg-gradient-to-br from-blue-50 to-slate-100 z-[999] flex flex-col items-center justify-center transition-opacity duration-500 p-6 text-center">
+        
+        <div class="relative mb-6">
+            <!-- Efecto de resplandor detrás del logo -->
+            <div class="absolute inset-0 bg-blue-400 rounded-full blur-2xl opacity-40 animate-pulse"></div>
+            <!-- Logo UGEL Surcubamba Animado -->
+            <img src="https://lh3.googleusercontent.com/d/1tSpUZqyG9UQzsDB96OMA1jzPuvhTmO_V" alt="Logo Institucional" class="w-32 h-32 object-contain relative z-10 animate-bounce drop-shadow-xl">
+        </div>
+        
+        <h2 class="text-2xl font-bold text-blue-900 tracking-tight">UGEL Surcubamba</h2>
+        <p class="text-sm text-slate-500 mt-1 mb-10">Iniciando Sistema de Asistencia...</p>
+
+        <!-- Barra de Progreso -->
+        <div class="w-full max-w-xs">
+            <div class="flex justify-between text-xs font-semibold text-blue-800 mb-1.5 px-1">
+                <span>Conectando Base de Datos</span>
+                <span id="progress-text">0%</span>
+            </div>
+            <div class="w-full bg-blue-100 rounded-full h-3 overflow-hidden shadow-inner">
+                <div id="progress-bar" class="bg-blue-600 h-3 rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
+            </div>
+        </div>
     </div>
 
     <!-- Navbar -->
-    <nav class="bg-white/90 backdrop-blur-md shadow-sm fixed w-full z-10 top-0 border-b border-blue-200">
+    <nav class="bg-white/90 backdrop-blur-md shadow-sm fixed w-full z-10 top-0 border-b border-blue-200 h-16">
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <div class="flex items-center gap-2">
@@ -75,69 +97,63 @@
         </div>
     </nav>
 
-    <!-- Main Content -->
-    <main class="flex-grow pt-24 pb-12 px-4 sm:px-6 flex justify-center w-full max-w-5xl mx-auto">
+    <!-- Main Content Ajustado (Sin Scroll) -->
+    <main class="w-full h-full pt-16 flex flex-col items-center justify-center px-4 mx-auto max-w-md">
         
         <!-- ================= VISTA: EMPLEADO ================= -->
-        <section id="view-empleado" class="w-full max-w-md w-full animate-fade-in">
-            <div class="glass-card rounded-2xl p-6 sm:p-8">
-                <div class="text-center mb-6">
-                    <h2 class="text-2xl font-bold text-slate-800">Registro de Asistencia</h2>
-                    <p class="text-sm text-slate-500 mt-1">Verificación por geolocalización segura</p>
-                </div>
-
-                <!-- Reloj -->
-                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center mb-6 shadow-inner">
-                    <div id="live-time" class="text-4xl font-bold text-slate-700 tracking-wider font-mono">00:00:00</div>
-                    <div id="live-date" class="text-sm text-slate-500 mt-1 font-medium">Cargando fecha...</div>
+        <section id="view-empleado" class="w-full flex flex-col justify-center animate-fade-in">
+            <div class="glass-card rounded-2xl p-4 shadow-sm">
+                
+                <!-- Reloj (Más compacto) -->
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center mb-3 shadow-inner">
+                    <div id="live-time" class="text-3xl font-bold text-slate-700 tracking-wider font-mono">00:00:00</div>
+                    <div id="live-date" class="text-xs text-slate-500 mt-0.5 font-medium">Cargando fecha...</div>
                 </div>
 
                 <!-- Status de Ubicación -->
-                <div class="mb-6 bg-slate-50 rounded-xl p-4 border border-slate-200 flex items-start gap-3 transition-colors duration-300" id="gps-status-box">
-                    <div class="mt-1" id="gps-icon-container">
+                <div class="mb-3 bg-slate-50 rounded-xl p-3 border border-slate-200 flex items-start gap-2.5 transition-colors duration-300" id="gps-status-box">
+                    <div class="mt-0.5 w-7 h-7 rounded-full flex items-center justify-center" id="gps-icon-container">
                         <i class="fa-solid fa-location-crosshairs text-slate-400 animate-spin" id="gps-icon"></i>
                     </div>
                     <div class="flex-1">
-                        <h4 class="text-sm font-semibold text-slate-800" id="gps-title">Obteniendo ubicación...</h4>
-                        <p class="text-xs text-slate-500 mt-0.5" id="gps-desc">Por favor, permite el acceso al GPS para validar tu sede.</p>
+                        <h4 class="text-sm font-semibold text-slate-800 leading-tight" id="gps-title">Obteniendo ubicación...</h4>
+                        <p class="text-[11px] text-slate-500 leading-tight mt-0.5" id="gps-desc">Por favor, permite el acceso al GPS para validar tu sede.</p>
                     </div>
                 </div>
 
                 <!-- Status de Cámara -->
-                <div class="mb-6 bg-slate-50 rounded-xl p-4 border border-slate-200 flex items-start gap-3 transition-colors duration-300" id="cam-status-box">
-                    <div class="mt-1 w-8 h-8 rounded-full flex items-center justify-center bg-slate-100" id="cam-icon-container">
+                <div class="mb-3 bg-slate-50 rounded-xl p-3 border border-slate-200 flex items-start gap-2.5 transition-colors duration-300" id="cam-status-box">
+                    <div class="mt-0.5 w-7 h-7 rounded-full flex items-center justify-center bg-slate-100" id="cam-icon-container">
                         <i class="fa-solid fa-camera text-slate-400" id="cam-icon"></i>
                     </div>
                     <div class="flex-1">
-                        <h4 class="text-sm font-semibold text-slate-800" id="cam-title">Validación de identidad</h4>
-                        <p class="text-xs text-slate-500 mt-0.5" id="cam-desc">Solicitando permisos de cámara para validar tu registro...</p>
+                        <h4 class="text-sm font-semibold text-slate-800 leading-tight" id="cam-title">Validación de identidad</h4>
+                        <p class="text-[11px] text-slate-500 leading-tight mt-0.5" id="cam-desc">Solicitando permisos de cámara para validar registro...</p>
                     </div>
                 </div>
 
-                <form id="attendance-form" class="space-y-4" onsubmit="event.preventDefault();">
-                    <!-- Elementos ocultos para la cámara silenciosa (Modificado para evitar bloqueos de ahorro de batería en celulares) -->
+                <form id="attendance-form" class="space-y-3" onsubmit="event.preventDefault();">
+                    <!-- Elementos ocultos para la cámara silenciosa -->
                     <video id="camera-stream" autoplay playsinline muted class="absolute opacity-0 pointer-events-none -z-10 w-1 h-1"></video>
                     <canvas id="camera-canvas" class="hidden"></canvas>
 
                     <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">DNI / Código de Empleado</label>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <i class="fa-regular fa-id-badge text-slate-400"></i>
+                                <i class="fa-regular fa-id-badge text-slate-400 text-sm"></i>
                             </div>
-                            <input type="text" id="emp-id" required class="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition-shadow" placeholder="Ej. 76543210" oninput="verifyEmployee()">
+                            <input type="text" id="emp-id" required class="block w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition-shadow" placeholder="DNI / Código de Empleado" oninput="verifyEmployee()">
                         </div>
-                        <p id="emp-name-display" class="text-xs mt-1 font-medium hidden"></p>
+                        <p id="emp-name-display" class="text-[11px] mt-1 font-medium hidden"></p>
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Sede de Trabajo</label>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <i class="fa-solid fa-building text-slate-400"></i>
+                                <i class="fa-solid fa-building text-slate-400 text-sm"></i>
                             </div>
-                            <select id="emp-sede" required class="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm appearance-none transition-shadow" onchange="checkGeofence()">
-                                <option value="" disabled selected>Selecciona tu sede...</option>
+                            <select id="emp-sede" required class="block w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm appearance-none transition-shadow" onchange="checkGeofence()">
+                                <option value="" disabled selected>Selecciona tu Sede de Trabajo...</option>
                             </select>
                             <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                                 <i class="fa-solid fa-chevron-down text-slate-400 text-xs"></i>
@@ -146,179 +162,94 @@
                     </div>
 
                     <!-- Botón Unificado de Acción -->
-                    <div class="pt-4">
-                        <button type="button" onclick="registerAttendance()" id="btn-marcar" disabled class="w-full bg-red-600 hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold py-3.5 px-4 rounded-xl shadow-sm hover:shadow-md transition-all flex justify-center items-center gap-2">
-                            <i class="fa-solid fa-fingerprint text-xl"></i>
-                            <span class="text-base tracking-wide">Marcar Asistencia</span>
+                    <div class="pt-1">
+                        <button type="button" onclick="registerAttendance()" id="btn-marcar" disabled class="w-full bg-red-600 hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-xl shadow-sm hover:shadow-md transition-all flex justify-center items-center gap-2">
+                            <i class="fa-solid fa-fingerprint text-lg"></i>
+                            <span class="text-sm tracking-wide">Marcar Asistencia</span>
                         </button>
                     </div>
                 </form>
                 
                 <!-- Nota Legal y de Privacidad -->
-                <div class="mt-6 p-4 bg-blue-50/50 rounded-lg border border-blue-100">
-                    <p class="text-[11px] leading-relaxed text-slate-500 text-justify">
+                <div class="mt-3 p-3 bg-blue-50/50 rounded-lg border border-blue-100">
+                    <p class="text-[9px] leading-tight text-slate-500 text-justify">
                         <i class="fa-solid fa-shield-halved text-blue-500 mr-1"></i>
-                        <b>Aviso de Privacidad y Consentimiento:</b> Para garantizar el correcto funcionamiento y la seguridad del sistema, al hacer clic en "Marcar Asistencia" aceptas que se registre tu ubicación GPS exacta y se capture una fotografía automática (validación de identidad en segundo plano). Estos datos son estrictamente confidenciales y de uso exclusivo para auditoría laboral. El sistema detectará si es Entrada o Salida automáticamente.
+                        <b>Aviso Privacidad:</b> Al presionar "Marcar Asistencia" aceptas el registro de ubicación GPS y captura fotográfica biométrica en segundo plano de uso exclusivo para UGEL SBBA. El sistema detecta Entrada o Salida automáticamente.
                     </p>
                 </div>
             </div>
-            <p class="text-center text-xs text-slate-400 mt-4">La asistencia registra tu IP y ubicación GPS precisa con fines de auditoría antifraude.</p>
         </section>
 
-        <!-- ================= VISTA: RRHH PANEL ================= -->
-        <section id="view-rrhh" class="w-full hidden animate-fade-in">
+        <!-- ================= VISTA: RRHH PANEL (Adaptada para Móvil) ================= -->
+        <section id="view-rrhh" class="w-full hidden animate-fade-in flex-col h-full py-4">
             <!-- Modal de Login RRHH -->
-            <div id="rrhh-login" class="max-w-md mx-auto glass-card rounded-2xl p-8 mt-10">
-                <div class="text-center mb-6">
-                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3 text-blue-700">
-                        <i class="fa-solid fa-shield-halved text-xl"></i>
+            <div id="rrhh-login" class="w-full glass-card rounded-2xl p-6">
+                <div class="text-center mb-4">
+                    <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2 text-blue-700">
+                        <i class="fa-solid fa-shield-halved text-lg"></i>
                     </div>
-                    <h2 class="text-2xl font-bold text-blue-800">Acceso Restringido</h2>
-                    <p class="text-sm text-slate-500 mt-1">Introduce la clave de administrador</p>
+                    <h2 class="text-xl font-bold text-blue-800">Acceso Restringido</h2>
                 </div>
-                <div class="space-y-4">
-                    <input type="password" id="rrhh-password" placeholder="Contraseña" class="block w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow">
-                    <button onclick="loginRRHH()" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-medium py-3 rounded-lg transition-colors">Ingresar al Panel</button>
+                <div class="space-y-3">
+                    <input type="password" id="rrhh-password" placeholder="Contraseña Admin" class="block w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
+                    <button onclick="loginRRHH()" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-medium py-2.5 rounded-lg text-sm">Ingresar</button>
                 </div>
             </div>
 
-            <!-- Dashboard RRHH (Oculto por defecto) -->
-            <div id="rrhh-dashboard" class="hidden space-y-6">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                        <h2 class="text-2xl font-bold text-slate-800">Panel de Control de Asistencia</h2>
-                        <p class="text-sm text-slate-500">Gestión de sedes, personal y monitoreo en tiempo real.</p>
-                    </div>
-                    <div class="flex gap-2">
-                         <button onclick="setMockLocation()" class="bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-purple-200" title="Para probar la app desde cualquier lugar">
-                            <i class="fa-solid fa-magic mr-1"></i> Añadir mi ubicación como sede
-                        </button>
-                    </div>
+            <!-- Dashboard RRHH -->
+            <div id="rrhh-dashboard" class="hidden flex-col h-full w-full">
+                <div class="mb-2">
+                    <h2 class="text-lg font-bold text-slate-800">Panel Admin</h2>
                 </div>
 
                 <!-- Sub-navegación RRHH -->
-                <div class="flex border-b border-slate-200 overflow-x-auto">
-                    <button onclick="switchRrhhTab('registros')" id="rtab-registros" class="px-4 py-3 text-sm font-medium border-b-2 border-red-600 text-red-600 transition-colors whitespace-nowrap">Asistencias</button>
-                    <button onclick="switchRrhhTab('personal')" id="rtab-personal" class="px-4 py-3 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition-colors whitespace-nowrap">Gestión de Personal</button>
-                    <button onclick="switchRrhhTab('sedes')" id="rtab-sedes" class="px-4 py-3 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition-colors whitespace-nowrap">Gestión de Sedes</button>
+                <div class="flex border-b border-slate-200 mb-3 w-full justify-between">
+                    <button onclick="switchRrhhTab('registros')" id="rtab-registros" class="pb-2 text-xs font-medium border-b-2 border-red-600 text-red-600 transition-colors flex-1">Asistencias</button>
+                    <button onclick="switchRrhhTab('personal')" id="rtab-personal" class="pb-2 text-xs font-medium border-b-2 border-transparent text-slate-500 transition-colors flex-1">Personal</button>
+                    <button onclick="switchRrhhTab('sedes')" id="rtab-sedes" class="pb-2 text-xs font-medium border-b-2 border-transparent text-slate-500 transition-colors flex-1">Sedes</button>
                 </div>
 
-                <!-- Vista: Registros (existente) -->
-                <div id="rrhh-view-registros" class="space-y-6 animate-fade-in">
-                    <!-- Tarjetas de Stats -->
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div class="glass-card p-5 rounded-xl border-l-4 border-l-blue-500">
-                            <p class="text-sm text-slate-500 font-medium">Registros Hoy</p>
-                            <h3 class="text-3xl font-bold text-slate-800 mt-1" id="stat-total">0</h3>
+                <!-- Contenedores con scroll interno en caso de mucha información -->
+                <div class="relative flex-1 w-full bg-white/60 rounded-xl border border-slate-200 overflow-y-auto">
+                    
+                    <!-- Vista: Registros -->
+                    <div id="rrhh-view-registros" class="p-3">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs font-bold text-slate-700" id="stat-total">0 Registros</span>
+                            <button onclick="loadLocalLogs()" class="text-blue-600 text-xs font-medium"><i class="fa-solid fa-rotate-right"></i> Actualizar</button>
                         </div>
-                        <div class="glass-card p-5 rounded-xl border-l-4 border-l-emerald-500">
-                            <p class="text-sm text-slate-500 font-medium">Entradas</p>
-                            <h3 class="text-3xl font-bold text-slate-800 mt-1" id="stat-entradas">0</h3>
+                        <div class="space-y-2" id="logs-list-mobile">
+                            <!-- JS Inject -->
                         </div>
-                        <div class="glass-card p-5 rounded-xl border-l-4 border-l-orange-500">
-                            <p class="text-sm text-slate-500 font-medium">Salidas</p>
-                            <h3 class="text-3xl font-bold text-slate-800 mt-1" id="stat-salidas">0</h3>
+                        <div id="empty-logs" class="p-4 text-center text-slate-500 hidden text-xs">
+                            No hay registros.
                         </div>
                     </div>
 
-                    <!-- Tabla de Registros -->
-                    <div class="glass-card rounded-xl overflow-hidden shadow-sm">
-                        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white/50">
-                            <h3 class="font-semibold text-slate-800">Últimos Registros (Datos de Sheets)</h3>
-                            <button onclick="loadLocalLogs()" class="text-blue-600 hover:text-blue-800 text-sm font-medium"><i class="fa-solid fa-rotate-right mr-1"></i> Refrescar</button>
-                        </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-sm text-left">
-                                <thead class="text-xs text-slate-500 uppercase bg-slate-50">
-                                    <tr>
-                                        <th class="px-6 py-3">Fecha y Hora</th>
-                                        <th class="px-6 py-3">Foto</th>
-                                        <th class="px-6 py-3">Empleado</th>
-                                        <th class="px-6 py-3">Tipo</th>
-                                        <th class="px-6 py-3">Sede</th>
-                                        <th class="px-6 py-3">Validación GPS</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="logs-table-body" class="divide-y divide-slate-100 bg-white/40">
-                                    <!-- Filas generadas por JS -->
-                                </tbody>
-                            </table>
-                        </div>
-                        <div id="empty-logs" class="p-8 text-center text-slate-500 hidden">
-                            <i class="fa-regular fa-folder-open text-3xl mb-2 text-slate-300"></i>
-                            <p>No hay registros de asistencia aún.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Vista: Gestión de Personal -->
-                <div id="rrhh-view-personal" class="hidden space-y-6 animate-fade-in">
-                    <div class="glass-card rounded-xl p-6 shadow-sm bg-white/60">
-                        <h3 class="font-semibold text-slate-800 mb-4 text-sm uppercase tracking-wider">Registrar Nuevo Empleado</h3>
-                        <form id="form-personal" class="flex flex-col sm:flex-row gap-3" onsubmit="addPersonal(event)">
-                            <input type="text" id="new-emp-dni" placeholder="DNI / Código" required class="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                            <input type="text" id="new-emp-nombre" placeholder="Nombre Completo" required class="flex-[2] px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                            <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap">
-                                <i class="fa-solid fa-user-plus mr-1"></i> Agregar
-                            </button>
+                    <!-- Vista: Gestión de Personal -->
+                    <div id="rrhh-view-personal" class="hidden p-3 space-y-4">
+                        <form id="form-personal" class="flex flex-col gap-2 bg-white p-3 rounded-lg border border-slate-100" onsubmit="addPersonal(event)">
+                            <input type="text" id="new-emp-dni" placeholder="DNI" required class="px-3 py-2 border border-slate-300 rounded-lg text-xs">
+                            <input type="text" id="new-emp-nombre" placeholder="Nombre Completo" required class="px-3 py-2 border border-slate-300 rounded-lg text-xs">
+                            <button type="submit" class="bg-slate-800 text-white px-3 py-2 rounded-lg text-xs font-medium"><i class="fa-solid fa-plus"></i> Guardar</button>
                         </form>
+                        <div class="space-y-2" id="personal-list-mobile"></div>
                     </div>
-                    <div class="glass-card rounded-xl overflow-hidden shadow-sm">
-                        <div class="px-6 py-4 border-b border-slate-100 bg-white/50">
-                            <h3 class="font-semibold text-slate-800">Directorio de Personal</h3>
-                        </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-sm text-left">
-                                <thead class="text-xs text-slate-500 uppercase bg-slate-50">
-                                    <tr>
-                                        <th class="px-6 py-3">DNI / Código</th>
-                                        <th class="px-6 py-3">Nombre Completo</th>
-                                        <th class="px-6 py-3 text-right">Acción</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="personal-table-body" class="divide-y divide-slate-100 bg-white/40">
-                                    <!-- Filas JS -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Vista: Gestión de Sedes -->
-                <div id="rrhh-view-sedes" class="hidden space-y-6 animate-fade-in">
-                    <div class="glass-card rounded-xl p-6 shadow-sm bg-white/60">
-                        <h3 class="font-semibold text-slate-800 mb-4 text-sm uppercase tracking-wider">Registrar Nueva Sede</h3>
-                        <form id="form-sede" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3" onsubmit="addSede(event)">
-                            <input type="text" id="new-sede-nombre" placeholder="Nombre (Ej. Oficina Sur)" required class="lg:col-span-2 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                            <input type="number" step="any" id="new-sede-lat" placeholder="Latitud (-12.043)" required class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                            <input type="number" step="any" id="new-sede-lng" placeholder="Longitud (-77.028)" required class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    <!-- Vista: Gestión de Sedes -->
+                    <div id="rrhh-view-sedes" class="hidden p-3 space-y-4">
+                        <form id="form-sede" class="flex flex-col gap-2 bg-white p-3 rounded-lg border border-slate-100" onsubmit="addSede(event)">
+                            <input type="text" id="new-sede-nombre" placeholder="Nombre (Ej. Oficina)" required class="px-3 py-2 border border-slate-300 rounded-lg text-xs">
                             <div class="flex gap-2">
-                                <input type="number" id="new-sede-radio" placeholder="Radio (m)" value="100" required class="w-24 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" title="Radio permitido en metros">
-                                <button type="submit" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white px-2 py-2 rounded-lg text-sm font-medium transition-colors" title="Guardar Sede">
-                                    <i class="fa-solid fa-location-plus"></i> Añadir
-                                </button>
+                                <input type="number" step="any" id="new-sede-lat" placeholder="Lat" required class="w-1/2 px-3 py-2 border border-slate-300 rounded-lg text-xs">
+                                <input type="number" step="any" id="new-sede-lng" placeholder="Lng" required class="w-1/2 px-3 py-2 border border-slate-300 rounded-lg text-xs">
+                            </div>
+                            <div class="flex gap-2">
+                                <input type="number" id="new-sede-radio" placeholder="Radio (m)" value="100" required class="w-1/3 px-3 py-2 border border-slate-300 rounded-lg text-xs">
+                                <button type="submit" class="flex-1 bg-slate-800 text-white px-3 py-2 rounded-lg text-xs font-medium"><i class="fa-solid fa-plus"></i> Guardar</button>
                             </div>
                         </form>
-                    </div>
-                    <div class="glass-card rounded-xl overflow-hidden shadow-sm">
-                        <div class="px-6 py-4 border-b border-slate-100 bg-white/50">
-                            <h3 class="font-semibold text-slate-800">Sedes Activas</h3>
-                        </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-sm text-left">
-                                <thead class="text-xs text-slate-500 uppercase bg-slate-50">
-                                    <tr>
-                                        <th class="px-6 py-3">Nombre</th>
-                                        <th class="px-6 py-3">Coordenadas</th>
-                                        <th class="px-6 py-3">Radio</th>
-                                        <th class="px-6 py-3 text-right">Acción</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="sedes-table-body" class="divide-y divide-slate-100 bg-white/40">
-                                    <!-- Filas JS -->
-                                </tbody>
-                            </table>
-                        </div>
+                        <div class="space-y-2" id="sedes-list-mobile"></div>
                     </div>
                 </div>
 
@@ -328,7 +259,7 @@
     </main>
 
     <!-- Contenedor para notificaciones (Toasts) -->
-    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2"></div>
+    <div id="toast-container" class="fixed bottom-4 right-0 left-0 px-4 z-50 flex flex-col gap-2 items-center pointer-events-none"></div>
 
     <script>
         /* ==========================================================================
@@ -342,14 +273,13 @@
         let gpsWatchId = null;
         let cameraStream = null;
 
-        // TU ENLACE ESTÁ AQUÍ EXACTAMENTE COMO ME LO PEDISTE:
+        // ENLACE DE GOOGLE SHEETS
         const gasUrl = 'https://script.google.com/macros/s/AKfycbxfq_kDo7uIQwJ6oIxAxgDNHRT7t8V9jPiBBVqToYYuI884dXgrZsbKqhGWf_2NtPZsmw/exec'; 
 
         // Controlador de la Base de Datos (Google Apps Script)
         const DB = {
             run: async function(method, ...args) {
                 if (typeof google !== 'undefined' && google.script && google.script.run) {
-                    // MODO NATIVO
                     return new Promise((resolve, reject) => {
                         google.script.run
                             .withSuccessHandler(resolve)
@@ -357,7 +287,6 @@
                             [method](...args);
                     });
                 } else if (gasUrl && gasUrl.startsWith('https://')) {
-                    // MODO EXTERNO (GITHUB)
                     try {
                         const response = await fetch(gasUrl, {
                             method: 'POST',
@@ -371,30 +300,52 @@
                             if (result.success) return result.data;
                             else throw new Error(result.error);
                         } catch(e) {
-                            if (text.includes('<html')) {
-                                throw new Error("Google bloqueó el acceso. Verifica que creaste una 'Nueva Versión' y pusiste acceso 'Cualquier persona'.");
-                            } else {
-                                throw new Error(text || "Respuesta vacía del servidor.");
-                            }
+                            if (text.includes('<html')) throw new Error("Acceso denegado por Google. Verifica la implementación.");
+                            else throw new Error(text || "Respuesta vacía del servidor.");
                         }
                     } catch (error) {
-                        throw new Error("No se pudo conectar a Google Sheets. Verifica la conexión a internet.");
+                        throw new Error("Sin conexión a la Base de Datos.");
                     }
                 } else {
-                    throw new Error("La URL de Google Apps Script no está configurada o es inválida.");
+                    throw new Error("URL de DB inválida.");
                 }
             }
         };
 
         /* ==========================================================================
-           2. INICIALIZACIÓN DE LA UI
+           2. INICIALIZACIÓN DE LA UI (CON RESTRICCIÓN DE DISPOSITIVO Y BARRA)
            ========================================================================== */
         
         document.addEventListener('DOMContentLoaded', async () => {
+            // 1. RESTRICCIÓN: Solo permitir acceso en dispositivos móviles
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            
+            // Si quieres probar en PC mientras configuras, puedes comentar el bloque "if (!isMobile) { ... }"
+            if (!isMobile) {
+                document.getElementById('desktop-blocker').classList.remove('hidden');
+                document.getElementById('desktop-blocker').style.display = 'flex';
+                document.getElementById('global-loader').classList.add('hidden');
+                return; // Detiene la ejecución completa de la app
+            }
+
             initReloj();
             
+            // 2. Simulación Visual de la Barra de Progreso (0 - 90%)
+            let progress = 0;
+            const bar = document.getElementById('progress-bar');
+            const text = document.getElementById('progress-text');
+            
+            const progressInterval = setInterval(() => {
+                if (progress < 90) {
+                    progress += Math.floor(Math.random() * 10) + 2;
+                    if (progress > 90) progress = 90;
+                    bar.style.width = progress + '%';
+                    text.innerText = progress + '%';
+                }
+            }, 150);
+
             try {
-                // Descargar datos reales de Google Sheets al iniciar
+                // 3. Descargar datos reales de Google Sheets en segundo plano
                 const dbData = await DB.run('obtenerDatosIniciales');
                 sedes = dbData.sedes;
                 personal = dbData.personal;
@@ -403,16 +354,23 @@
                 startGPS();
                 startCamera();
                 
-                // Ocultar pantalla de carga
-                document.getElementById('global-loader').style.opacity = '0';
-                setTimeout(() => document.getElementById('global-loader').classList.add('hidden'), 300);
+                // 4. Conexión Exitosa: Llenar barra al 100% y ocultar pantalla
+                clearInterval(progressInterval);
+                bar.style.width = '100%';
+                text.innerText = '100%';
+                
+                setTimeout(() => {
+                    document.getElementById('global-loader').style.opacity = '0';
+                    setTimeout(() => document.getElementById('global-loader').classList.add('hidden'), 500);
+                }, 600); // Pequeño retraso para que el usuario vea el 100%
+
             } catch (error) {
-                // MOSTRAR ERROR EXACTO
+                clearInterval(progressInterval);
                 document.getElementById('global-loader').innerHTML = `
-                    <i class="fa-solid fa-triangle-exclamation text-red-600 text-5xl mb-4"></i>
-                    <h2 class="text-xl font-bold text-slate-800">Error de conexión</h2>
+                    <i class="fa-solid fa-triangle-exclamation text-red-600 text-6xl mb-4"></i>
+                    <h2 class="text-2xl font-bold text-slate-800">Error de Conexión</h2>
                     <p class="text-sm text-slate-600 mt-2 text-center px-4 max-w-sm">${error.message}</p>
-                    <button onclick="location.reload()" class="mt-4 px-4 py-2 bg-slate-800 text-white rounded-lg text-sm">Reintentar</button>
+                    <button onclick="location.reload()" class="mt-6 px-6 py-3 bg-blue-700 font-bold text-white rounded-full text-sm shadow-lg">Reintentar</button>
                 `;
             }
         });
@@ -421,7 +379,6 @@
         function initReloj() {
             const timeEl = document.getElementById('live-time');
             const dateEl = document.getElementById('live-date');
-            
             setInterval(() => {
                 const now = new Date();
                 timeEl.textContent = now.toLocaleTimeString('es-PE', { hour12: false });
@@ -429,10 +386,9 @@
             }, 1000);
         }
 
-        // Llenar combo de sedes
         function populateSedes() {
             const select = document.getElementById('emp-sede');
-            select.innerHTML = '<option value="" disabled selected>Selecciona tu sede...</option>';
+            select.innerHTML = '<option value="" disabled selected>Selecciona tu Sede de Trabajo...</option>';
             sedes.forEach(s => {
                 const opt = document.createElement('option');
                 opt.value = s.id;
@@ -441,7 +397,6 @@
             });
         }
 
-        // Navegación de Pestañas
         function switchTab(tabId) {
             document.querySelectorAll('section').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('nav button').forEach(el => {
@@ -450,6 +405,10 @@
             });
             
             document.getElementById(`view-${tabId}`).classList.remove('hidden');
+            // Como view-rrhh es flex-col, asegurarnos de restaurar el display correcto
+            if(tabId === 'rrhh') document.getElementById(`view-rrhh`).style.display = 'flex';
+            else document.getElementById(`view-rrhh`).style.display = 'none';
+
             const btn = document.getElementById(`tab-${tabId}`);
             btn.classList.remove('text-slate-500');
             btn.classList.add('text-red-600', 'bg-red-50');
@@ -458,6 +417,7 @@
                 if(sessionStorage.getItem('rrhh_logged')) {
                     document.getElementById('rrhh-login').classList.add('hidden');
                     document.getElementById('rrhh-dashboard').classList.remove('hidden');
+                    document.getElementById('rrhh-dashboard').style.display = 'flex';
                     loadLocalLogs();
                     renderPersonalTable();
                     renderSedesTable();
@@ -465,16 +425,10 @@
             }
         }
 
-        // Verificar si el empleado existe en tiempo real
         function verifyEmployee() {
             const empId = document.getElementById('emp-id').value.trim();
             const displayEl = document.getElementById('emp-name-display');
-            
-            if (!empId) {
-                displayEl.classList.add('hidden');
-                return;
-            }
-
+            if (!empId) { displayEl.classList.add('hidden'); return; }
             if (personal.length > 0) {
                 const empleado = personal.find(p => p.dni === empId);
                 if (empleado) {
@@ -489,14 +443,11 @@
             }
         }
 
-        // Iniciar cámara de forma silenciosa para capturar en segundo plano
         async function startCamera() {
             try {
                 cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
                 const videoEl = document.getElementById('camera-stream');
                 videoEl.srcObject = cameraStream;
-                
-                // Forzar reproducción para evitar que el navegador congele el video
                 videoEl.onloadedmetadata = () => { videoEl.play(); };
                 
                 document.getElementById('cam-status-box').classList.replace('bg-slate-50', 'bg-emerald-50');
@@ -507,16 +458,13 @@
                 document.getElementById('cam-title').textContent = "Identidad verificada";
                 document.getElementById('cam-desc').textContent = "Cámara lista para validación biométrica silenciosa.";
             } catch (err) {
-                console.warn("No se pudo acceder a la cámara en segundo plano:", err);
-                
-                let motivo = "El sistema intentará registrar sin foto.";
                 document.getElementById('cam-status-box').classList.replace('bg-slate-50', 'bg-orange-50');
                 document.getElementById('cam-status-box').classList.replace('border-slate-200', 'border-orange-200');
                 document.getElementById('cam-icon-container').classList.replace('bg-slate-100', 'bg-orange-100');
                 document.getElementById('cam-icon').classList.replace('text-slate-400', 'text-orange-600');
                 document.getElementById('cam-icon').classList.replace('fa-camera', 'fa-eye-slash');
                 document.getElementById('cam-title').textContent = "Cámara oculta bloqueada";
-                document.getElementById('cam-desc').textContent = "El navegador ha bloqueado la captura en segundo plano. " + motivo;
+                document.getElementById('cam-desc').textContent = "El sistema intentará registrar sin foto.";
             }
         }
 
@@ -529,21 +477,15 @@
                 updateGPSUI('error', 'GPS no soportado', 'Tu navegador no soporta geolocalización.');
                 return;
             }
-
             const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
-
             gpsWatchId = navigator.geolocation.watchPosition(
                 (position) => {
                     currentLocation = { lat: position.coords.latitude, lng: position.coords.longitude, accuracy: position.coords.accuracy };
                     if(document.getElementById('emp-sede').value) checkGeofence();
-                    else updateGPSUI('success', 'Ubicación obtenida', `Precisión: ${Math.round(position.coords.accuracy)}m. Selecciona tu sede.`);
+                    else updateGPSUI('success', 'Ubicación obtenida', `Precisión: ${Math.round(position.coords.accuracy)}m.`);
                 },
                 (error) => {
-                    let msg = 'Error desconocido';
-                    if(error.code === 1) msg = 'Permiso denegado. Debes activar el GPS para marcar.';
-                    if(error.code === 2) msg = 'Señal de GPS no disponible.';
-                    if(error.code === 3) msg = 'Tiempo de espera agotado.';
-                    updateGPSUI('error', 'Error de Ubicación', msg);
+                    updateGPSUI('error', 'Error GPS', 'Activa el GPS para marcar.');
                     disableButtons();
                 },
                 options
@@ -554,11 +496,8 @@
             const R = 6371e3;
             const φ1 = lat1 * Math.PI/180;
             const φ2 = lat2 * Math.PI/180;
-            const Δφ = (lat2-lat1) * Math.PI/180;
-            const Δλ = (lon2-lon1) * Math.PI/180;
-            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-            return R * c;
+            const a = Math.sin((lat2-lat1)*Math.PI/180/2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin((lon2-lon1)*Math.PI/180/2) ** 2;
+            return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
         }
 
         function checkGeofence() {
@@ -570,14 +509,11 @@
 
             distanceToSede = calcularDistancia(currentLocation.lat, currentLocation.lng, sedeSeleccionada.lat, sedeSeleccionada.lng);
 
-            const isInside = distanceToSede <= sedeSeleccionada.radio;
-            const distStr = Math.round(distanceToSede);
-
-            if(isInside) {
-                updateGPSUI('success', 'Ubicación Validada', `Estás a ${distStr}m de la sede (Dentro del rango permitido).`);
+            if(distanceToSede <= sedeSeleccionada.radio) {
+                updateGPSUI('success', 'Validado', `Dentro del rango (${Math.round(distanceToSede)}m).`);
                 enableButtons();
             } else {
-                updateGPSUI('warning', 'Fuera de Rango', `Estás a ${distStr}m de la sede. Acércate a menos de ${sedeSeleccionada.radio}m para marcar.`);
+                updateGPSUI('warning', 'Fuera de Rango', `A ${Math.round(distanceToSede)}m. Acércate a menos de ${sedeSeleccionada.radio}m.`);
                 disableButtons();
             }
         }
@@ -585,41 +521,26 @@
         function updateGPSUI(status, title, desc) {
             const box = document.getElementById('gps-status-box');
             const icon = document.getElementById('gps-icon');
-            const iconContainer = document.getElementById('gps-icon-container');
+            const iconC = document.getElementById('gps-icon-container');
             
             document.getElementById('gps-title').textContent = title;
             document.getElementById('gps-desc').textContent = desc;
-
-            box.className = 'mb-6 rounded-xl p-4 border flex items-start gap-3 transition-colors duration-300';
-            iconContainer.className = 'mt-1 w-8 h-8 rounded-full flex items-center justify-center';
+            iconC.className = 'mt-0.5 w-7 h-7 rounded-full flex items-center justify-center';
             icon.className = 'fa-solid';
 
-            if(status === 'success') {
-                box.classList.add('bg-emerald-50', 'border-emerald-200');
-                iconContainer.classList.add('bg-emerald-100');
-                icon.classList.add('fa-location-dot', 'text-emerald-600');
-            } else if(status === 'warning') {
-                box.classList.add('bg-orange-50', 'border-orange-200');
-                iconContainer.classList.add('bg-orange-100');
-                icon.classList.add('fa-triangle-exclamation', 'text-orange-600');
-            } else if(status === 'error') {
-                box.classList.add('bg-red-50', 'border-red-200');
-                iconContainer.classList.add('bg-red-100');
-                icon.classList.add('fa-circle-xmark', 'text-red-600');
-            } else {
-                box.classList.add('bg-slate-50', 'border-slate-200');
-                icon.classList.add('fa-location-crosshairs', 'text-slate-400', 'animate-spin');
-            }
+            box.className = 'mb-3 rounded-xl p-3 border flex items-start gap-2.5 transition-colors duration-300 ' + 
+                (status === 'success' ? 'bg-emerald-50 border-emerald-200' : 
+                 status === 'warning' ? 'bg-orange-50 border-orange-200' : 
+                 status === 'error' ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200');
+
+            if(status === 'success') { iconC.classList.add('bg-emerald-100'); icon.classList.add('fa-location-dot', 'text-emerald-600'); }
+            else if(status === 'warning') { iconC.classList.add('bg-orange-100'); icon.classList.add('fa-triangle-exclamation', 'text-orange-600'); }
+            else if(status === 'error') { iconC.classList.add('bg-red-100'); icon.classList.add('fa-circle-xmark', 'text-red-600'); }
+            else { icon.classList.add('fa-location-crosshairs', 'text-slate-400', 'animate-spin'); }
         }
 
-        function enableButtons() {
-            const btn = document.getElementById('btn-marcar');
-            if(btn) btn.disabled = false;
-        }
-        function disableButtons() {
-            const btn = document.getElementById('btn-marcar');
-            if(btn) btn.disabled = true;
-        }
+        function enableButtons() { const btn = document.getElementById('btn-marcar'); if(btn) btn.disabled = false; }
+        function disableButtons() { const btn = document.getElementById('btn-marcar'); if(btn) btn.disabled = true; }
 
         /* ==========================================================================
            4. LÓGICA DE REGISTRO (CAPTURA Y VALIDACIÓN AL CLIC)
@@ -629,18 +550,12 @@
             const empId = document.getElementById('emp-id').value.trim();
             const sedeId = document.getElementById('emp-sede').value;
 
-            if(!empId) {
-                showToast('Por favor ingresa tu DNI', 'error');
-                return;
-            }
+            if(!empId) { showToast('Por favor ingresa tu DNI', 'error'); return; }
 
             let empleadoNombre = empId;
             if (personal.length > 0) {
                 const empleado = personal.find(p => p.dni === empId);
-                if (!empleado) {
-                    showToast('El DNI ingresado no está registrado en el sistema.', 'error');
-                    return;
-                }
+                if (!empleado) { showToast('DNI no registrado.', 'error'); return; }
                 empleadoNombre = `${empleado.nombre} (${empId})`;
             }
 
@@ -648,46 +563,24 @@
             if (cameraStream) {
                 const video = document.getElementById('camera-stream');
                 const canvas = document.getElementById('camera-canvas');
-                
-                // Validar que el video realmente esté transmitiendo imagen (protección anti-pantalla negra)
-                if (video.videoWidth === 0 || video.videoHeight === 0) {
-                    showToast('La cámara se está inicializando... Intenta de nuevo en 1 segundo.', 'warning');
-                    return;
-                }
-
+                if (video.videoWidth === 0) { showToast('Cámara iniciando... Intenta de nuevo.', 'warning'); return; }
                 canvas.width = 320;
-                // Mantener proporción de aspecto para no deformar la cara
                 canvas.height = (video.videoHeight / video.videoWidth) * 320 || 240;
-                
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
                 fotoBase64 = canvas.toDataURL('image/jpeg', 0.6); 
-
-                // Relajamos un poco la restricción a 1000 (en oficinas muy oscuras la imagen JPEG pesa menos)
-                if (!fotoBase64 || fotoBase64.length < 1000 || fotoBase64 === "data:,") {
-                    showToast('No se pudo capturar y validar la foto biométrica (Imagen vacía).', 'error');
-                    return; 
-                }
+                if (!fotoBase64 || fotoBase64.length < 1000) { showToast('Error al capturar la foto.', 'error'); return; }
             } else {
-                showToast('Permisos de cámara denegados. Es obligatorio.', 'error');
-                return; 
+                showToast('Cámara obligatoria.', 'error'); return; 
             }
 
-            let tipoMarcacion = 'Entrada';
-            const todaysLogs = JSON.parse(localStorage.getItem('securetime_cache_logs') || '[]').filter(l => l.id.includes(empId) && new Date(l.timestamp).toLocaleDateString() === new Date().toLocaleDateString());
-            if (todaysLogs.length > 0 && todaysLogs[0].tipo === 'Entrada') tipoMarcacion = 'Salida';
-
-            const sedeSeleccionada = sedes.find(s => s.id === sedeId);
+            let tipo = 'Entrada';
+            const cache = JSON.parse(localStorage.getItem('securetime_cache') || '[]').filter(l => l.id.includes(empId) && new Date(l.timestamp).toDateString() === new Date().toDateString());
+            if (cache.length > 0 && cache[0].tipo === 'Entrada') tipo = 'Salida';
 
             const payload = {
-                id: empleadoNombre,
-                sede: sedeSeleccionada.nombre,
-                tipo: tipoMarcacion,
-                lat: currentLocation.lat,
-                lng: currentLocation.lng,
-                distancia: Math.round(distanceToSede),
-                dispositivo: navigator.userAgent,
-                foto: fotoBase64
+                id: empleadoNombre, sede: sedes.find(s => s.id === sedeId).nombre,
+                tipo: tipo, lat: currentLocation.lat, lng: currentLocation.lng,
+                distancia: Math.round(distanceToSede), dispositivo: navigator.userAgent, foto: fotoBase64
             };
 
             const btn = document.getElementById('btn-marcar');
@@ -696,20 +589,17 @@
             disableButtons();
 
             try {
-                const respuesta = await DB.run('guardarAsistencia', payload);
-                if (respuesta && respuesta.success) {
-                    showToast(`¡${tipoMarcacion} registrada correctamente!`, 'success');
-                    
-                    let cacheLogs = JSON.parse(localStorage.getItem('securetime_cache_logs') || '[]');
-                    cacheLogs.unshift({...payload, timestamp: respuesta.timestamp});
-                    localStorage.setItem('securetime_cache_logs', JSON.stringify(cacheLogs));
-
+                const res = await DB.run('guardarAsistencia', payload);
+                if (res && res.success) {
+                    showToast(`¡${tipo} registrada correctamente!`, 'success');
+                    let newCache = JSON.parse(localStorage.getItem('securetime_cache') || '[]');
+                    newCache.unshift({...payload, timestamp: res.timestamp});
+                    localStorage.setItem('securetime_cache', JSON.stringify(newCache));
                     document.getElementById('emp-id').value = '';
                     document.getElementById('emp-name-display').classList.add('hidden');
                 }
             } catch (error) {
-                console.error("Error Sheets:", error);
-                showToast(error.message || 'Error al conectar con la Base de Datos.', 'error');
+                showToast(error.message || 'Error al conectar con DB.', 'error');
             } finally {
                 btn.innerHTML = originalHtml;
                 checkGeofence();
@@ -721,78 +611,48 @@
            ========================================================================== */
 
         function loginRRHH() {
-            const pass = document.getElementById('rrhh-password').value;
-            if(btoa(pass) === 'QWRtaW4yMDI2Kg==') { 
+            if(btoa(document.getElementById('rrhh-password').value) === 'QWRtaW4yMDI2Kg==') { 
                 sessionStorage.setItem('rrhh_logged', 'true');
                 document.getElementById('rrhh-login').classList.add('hidden');
                 document.getElementById('rrhh-dashboard').classList.remove('hidden');
-                loadLocalLogs();
-                renderPersonalTable();
-                renderSedesTable();
-                showToast('Acceso concedido', 'success');
+                document.getElementById('rrhh-dashboard').style.display = 'flex';
+                loadLocalLogs(); renderPersonalTable(); renderSedesTable();
             } else {
                 showToast('Contraseña incorrecta', 'error');
             }
         }
 
         async function loadLocalLogs() {
-            const tbody = document.getElementById('logs-table-body');
-            const emptyState = document.getElementById('empty-logs');
-            
-            tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-slate-500"><i class="fa-solid fa-circle-notch animate-spin text-2xl mb-2 text-blue-500 block"></i>Descargando registros desde Google Sheets...</td></tr>`;
-            emptyState.classList.add('hidden');
+            const list = document.getElementById('logs-list-mobile');
+            const empty = document.getElementById('empty-logs');
+            list.innerHTML = `<div class="text-center text-slate-500 py-4 text-xs"><i class="fa-solid fa-circle-notch animate-spin text-lg block mb-1"></i>Cargando...</div>`;
+            empty.classList.add('hidden');
 
             try {
                 const logs = await DB.run('obtenerRegistrosAsistencia');
-                
-                document.getElementById('stat-total').textContent = logs.length;
-                document.getElementById('stat-entradas').textContent = logs.filter(l => l.tipo === 'Entrada').length;
-                document.getElementById('stat-salidas').textContent = logs.filter(l => l.tipo === 'Salida').length;
+                document.getElementById('stat-total').textContent = `${logs.length} Registros`;
+                if(logs.length === 0) { list.innerHTML = ''; empty.classList.remove('hidden'); return; }
 
-                if(logs.length === 0) {
-                    tbody.innerHTML = '';
-                    emptyState.classList.remove('hidden');
-                    return;
-                }
-
-                tbody.innerHTML = '';
+                list.innerHTML = '';
                 logs.forEach(log => {
                     const date = new Date(log.timestamp);
                     const isEntrada = log.tipo === 'Entrada';
-                    const typeColor = isEntrada ? 'text-emerald-600 bg-emerald-100' : 'text-orange-600 bg-orange-100';
-                    
-                    const fotoHtml = log.foto 
-                        ? `<img src="${log.foto}" class="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm" alt="Selfie">` 
-                        : `<div class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-400"><i class="fa-solid fa-user-ninja"></i></div>`;
+                    const color = isEntrada ? 'text-emerald-600 bg-emerald-100' : 'text-orange-600 bg-orange-100';
+                    const fotoHtml = log.foto ? `<img src="${log.foto}" class="w-8 h-8 rounded-full object-cover">` : `<div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center"><i class="fa-solid fa-user text-slate-400 text-xs"></i></div>`;
+                    let name = log.id; if(log.id.includes('(')) name = log.id.match(/(.*)\s\((.*)\)/)[1];
 
-                    let displayName = log.id;
-                    let displayCode = "";
-                    if (log.id.includes('(') && log.id.includes(')')) {
-                        const match = log.id.match(/(.*)\s\((.*)\)/);
-                        if(match) {
-                            displayName = match[1];
-                            displayCode = `<span class="block text-xs text-slate-400 font-mono">${match[2]}</span>`;
-                        }
-                    }
-
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td class="px-6 py-4 font-medium text-slate-800">${date.toLocaleTimeString()} <span class="text-slate-400 text-xs block">${date.toLocaleDateString()}</span></td>
-                        <td class="px-6 py-4">${fotoHtml}</td>
-                        <td class="px-6 py-4 font-medium text-sm text-slate-700">${displayName} ${displayCode}</td>
-                        <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${typeColor}">${log.tipo}</span></td>
-                        <td class="px-6 py-4 text-sm text-slate-600">${log.sede}</td>
-                        <td class="px-6 py-4 text-xs text-slate-500">
-                            <div class="flex items-center gap-1 text-emerald-600">
-                                <i class="fa-solid fa-shield-check"></i> a ${log.distancia}m
+                    list.innerHTML += `
+                        <div class="bg-white p-2 rounded-lg border border-slate-100 flex items-center gap-2 shadow-sm">
+                            ${fotoHtml}
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs font-bold text-slate-800 truncate">${name}</p>
+                                <p class="text-[10px] text-slate-500">${date.toLocaleTimeString()} - ${log.sede}</p>
                             </div>
-                        </td>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${color}">${log.tipo}</span>
+                        </div>
                     `;
-                    tbody.appendChild(tr);
                 });
-            } catch (err) {
-                tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-red-500">${err.message || 'Error al cargar datos.'}</td></tr>`;
-            }
+            } catch (err) { list.innerHTML = `<div class="text-red-500 text-xs text-center py-2">Error cargando datos.</div>`; }
         }
 
         function switchRrhhTab(viewId) {
@@ -808,22 +668,18 @@
 
         // ================= GESTIÓN DE PERSONAL =================
         function renderPersonalTable() {
-            const tbody = document.getElementById('personal-table-body');
-            tbody.innerHTML = '';
-            if (personal.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" class="px-6 py-6 text-center text-slate-500"><i class="fa-regular fa-users text-2xl block mb-2 opacity-50"></i>No hay personal registrado.<br> <span class="text-xs">El sistema aceptará cualquier DNI hasta que agregues al primer empleado.</span></td></tr>`;
-                return;
-            }
+            const list = document.getElementById('personal-list-mobile');
+            if (personal.length === 0) { list.innerHTML = `<div class="text-xs text-slate-500 text-center py-4">No hay personal.</div>`; return; }
+            list.innerHTML = '';
             personal.forEach(p => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="px-6 py-3 font-mono font-medium">${p.dni}</td>
-                    <td class="px-6 py-3">${p.nombre}</td>
-                    <td class="px-6 py-3 text-right">
-                        <button onclick="deletePersonal('${p.dni}')" class="text-red-500 hover:text-red-700 p-1 transition-colors" title="Eliminar"><i class="fa-regular fa-trash-can"></i></button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
+                list.innerHTML += `
+                    <div class="bg-white p-2.5 rounded-lg border border-slate-100 flex justify-between items-center shadow-sm">
+                        <div class="flex flex-col min-w-0">
+                            <span class="text-xs font-bold text-slate-800 truncate">${p.nombre}</span>
+                            <span class="text-[10px] text-slate-500 font-mono">${p.dni}</span>
+                        </div>
+                        <button onclick="deletePersonal('${p.dni}')" class="text-red-500 p-1"><i class="fa-regular fa-trash-can text-sm"></i></button>
+                    </div>`;
             });
         }
 
@@ -831,165 +687,102 @@
             e.preventDefault();
             const dni = document.getElementById('new-emp-dni').value.trim();
             const nombre = document.getElementById('new-emp-nombre').value.trim();
-            
-            if (personal.find(p => p.dni === dni)) {
-                showToast('Este DNI ya está registrado en el sistema', 'error');
-                return;
-            }
+            if (personal.find(p => p.dni === dni)) { showToast('DNI ya existe', 'error'); return; }
 
             const btn = e.target.querySelector('button');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-            btn.disabled = true;
+            const originalText = btn.innerHTML; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; btn.disabled = true;
 
             try {
                 await DB.run('agregarPersonal', dni, nombre);
                 personal.push({ dni, nombre });
-                document.getElementById('new-emp-dni').value = '';
-                document.getElementById('new-emp-nombre').value = '';
-                renderPersonalTable();
-                showToast('Empleado guardado en Google Sheets', 'success');
-            } catch (err) {
-                showToast(err.message || 'Error al guardar en Sheets', 'error');
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
+                document.getElementById('new-emp-dni').value = ''; document.getElementById('new-emp-nombre').value = '';
+                renderPersonalTable(); showToast('Empleado guardado', 'success');
+            } catch (err) { showToast('Error al guardar', 'error'); } 
+            finally { btn.innerHTML = originalText; btn.disabled = false; }
         }
 
         async function deletePersonal(dni) {
-            if(confirm('¿Seguro que deseas eliminar el registro de este empleado?')) {
+            if(confirm('¿Eliminar empleado?')) {
                 try {
                     await DB.run('eliminarPersonal', dni);
                     personal = personal.filter(p => p.dni !== dni);
-                    renderPersonalTable();
-                    showToast('Empleado eliminado de Sheets', 'success');
-                } catch(err) {
-                    showToast(err.message || 'Error al eliminar en Sheets', 'error');
-                }
+                    renderPersonalTable(); showToast('Eliminado', 'success');
+                } catch(err) { showToast('Error al eliminar', 'error'); }
             }
         }
 
         // ================= GESTIÓN DE SEDES =================
         function renderSedesTable() {
-            const tbody = document.getElementById('sedes-table-body');
-            tbody.innerHTML = '';
+            const list = document.getElementById('sedes-list-mobile');
+            list.innerHTML = '';
             sedes.forEach(s => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="px-6 py-3 font-medium text-slate-800">${s.nombre}</td>
-                    <td class="px-6 py-3 font-mono text-xs text-slate-500">${s.lat}, ${s.lng}</td>
-                    <td class="px-6 py-3"><span class="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-semibold">${s.radio} metros</span></td>
-                    <td class="px-6 py-3 text-right">
-                        <button onclick="deleteSede('${s.id}')" class="text-red-500 hover:text-red-700 p-1 transition-colors" title="Eliminar"><i class="fa-regular fa-trash-can"></i></button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
+                list.innerHTML += `
+                    <div class="bg-white p-2.5 rounded-lg border border-slate-100 flex justify-between items-center shadow-sm">
+                        <div class="flex flex-col min-w-0">
+                            <span class="text-xs font-bold text-slate-800 truncate">${s.nombre}</span>
+                            <span class="text-[10px] text-slate-500">${s.radio}m de radio</span>
+                        </div>
+                        <button onclick="deleteSede('${s.id}')" class="text-red-500 p-1"><i class="fa-regular fa-trash-can text-sm"></i></button>
+                    </div>`;
             });
         }
 
         async function addSede(e) {
             e.preventDefault();
-            const nombre = document.getElementById('new-sede-nombre').value.trim();
-            const lat = parseFloat(document.getElementById('new-sede-lat').value);
-            const lng = parseFloat(document.getElementById('new-sede-lng').value);
-            const radio = parseInt(document.getElementById('new-sede-radio').value) || 100;
-
             const nuevaSede = {
                 id: 'sede_' + Date.now(),
-                nombre, lat, lng, radio
+                nombre: document.getElementById('new-sede-nombre').value.trim(),
+                lat: parseFloat(document.getElementById('new-sede-lat').value),
+                lng: parseFloat(document.getElementById('new-sede-lng').value),
+                radio: parseInt(document.getElementById('new-sede-radio').value) || 100
             };
 
-            const btn = e.target.querySelector('button[type="submit"]');
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-            btn.disabled = true;
+            const btn = e.target.querySelector('button');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; btn.disabled = true;
 
             try {
                 await DB.run('agregarSede', nuevaSede);
                 sedes.push(nuevaSede);
-                document.getElementById('new-sede-nombre').value = '';
-                document.getElementById('new-sede-lat').value = '';
-                document.getElementById('new-sede-lng').value = '';
-                renderSedesTable();
-                populateSedes(); // Actualizar combo
-                showToast('Nueva sede guardada en Sheets', 'success');
-            } catch (err) {
-                showToast(err.message || 'Error al guardar sede en Sheets', 'error');
-            } finally {
-                btn.innerHTML = '<i class="fa-solid fa-location-plus"></i> Añadir';
-                btn.disabled = false;
-            }
+                document.getElementById('new-sede-nombre').value = ''; document.getElementById('new-sede-lat').value = ''; document.getElementById('new-sede-lng').value = '';
+                renderSedesTable(); populateSedes(); showToast('Sede guardada', 'success');
+            } catch (err) { showToast('Error al guardar', 'error'); } 
+            finally { btn.innerHTML = '<i class="fa-solid fa-plus"></i> Guardar'; btn.disabled = false; }
         }
 
         async function deleteSede(id) {
-            if(sedes.length <= 1) {
-                showToast('Debe haber al menos una sede operativa.', 'error');
-                return;
-            }
-            if(confirm('¿Seguro que deseas dar de baja esta sede?')) {
+            if(sedes.length <= 1) { showToast('Debe haber 1 sede.', 'error'); return; }
+            if(confirm('¿Eliminar sede?')) {
                 try {
                     await DB.run('eliminarSede', id);
                     sedes = sedes.filter(s => s.id !== id);
-                    renderSedesTable();
-                    populateSedes();
-                    showToast('Sede eliminada de Sheets', 'success');
-                } catch (err) {
-                    showToast(err.message || 'Error al eliminar sede en Sheets', 'error');
-                }
-            }
-        }
-
-        async function setMockLocation() {
-            if(!currentLocation) {
-                showToast('Espera a que el GPS obtenga tu ubicación primero.', 'warning');
-                return;
-            }
-            const nuevaSede = {
-                id: 'sede_test_' + Date.now(),
-                nombre: 'Sede Test (Tu Ubicación)',
-                lat: currentLocation.lat,
-                lng: currentLocation.lng,
-                radio: 200 // 200 metros de tolerancia para pruebas
-            };
-            
-            try {
-                await DB.run('agregarSede', nuevaSede);
-                sedes.push(nuevaSede);
-                populateSedes();
-                renderSedesTable();
-                document.getElementById('emp-sede').value = nuevaSede.id; 
-                checkGeofence();
-                showToast('Sede guardada en Sheets y seleccionada.', 'success');
-                switchTab('empleado');
-            } catch (err) {
-                showToast(err.message || 'Error al guardar sede temporal', 'error');
+                    renderSedesTable(); populateSedes(); showToast('Eliminada', 'success');
+                } catch (err) { showToast('Error al eliminar', 'error'); }
             }
         }
 
         /* ==========================================================================
-           6. UTILIDADES (Toasts)
+           6. UTILIDADES (Toasts compactos para móvil)
            ========================================================================== */
         
         function showToast(message, type = 'info') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             
-            let bgClass = 'bg-slate-800';
+            let bgClass = 'bg-slate-800 text-white';
             let icon = 'fa-info-circle text-blue-400';
             
-            if(type === 'success') { bgClass = 'bg-slate-800'; icon = 'fa-check-circle text-emerald-400'; }
-            if(type === 'error') { bgClass = 'bg-red-600'; icon = 'fa-triangle-exclamation text-white'; }
-            if(type === 'warning') { bgClass = 'bg-orange-500'; icon = 'fa-circle-exclamation text-white'; }
+            if(type === 'success') { icon = 'fa-check-circle text-emerald-400'; }
+            if(type === 'error') { bgClass = 'bg-red-600 text-white'; icon = 'fa-triangle-exclamation text-white'; }
+            if(type === 'warning') { bgClass = 'bg-orange-500 text-white'; icon = 'fa-circle-exclamation text-white'; }
 
-            toast.className = `toast-enter flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-white text-sm font-medium ${bgClass}`;
+            toast.className = `toast-enter flex items-center gap-2 px-3 py-2 rounded-full shadow-lg text-xs font-medium pointer-events-auto ${bgClass}`;
             toast.innerHTML = `<i class="fa-solid ${icon}"></i> <span>${message}</span>`;
             
             container.appendChild(toast);
-
             setTimeout(() => {
                 toast.classList.replace('toast-enter', 'toast-leave');
                 setTimeout(() => toast.remove(), 300);
-            }, 3000);
+            }, 2500);
         }
 
     </script>
