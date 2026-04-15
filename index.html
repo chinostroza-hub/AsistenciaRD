@@ -319,7 +319,10 @@
             try {
                 // 1. CARGAR MODELOS DE INTELIGENCIA ARTIFICIAL (FACE-API)
                 desc.innerText = "Cargando IA Biométrica...";
-                const MODEL_URL = 'https://cdn.jsdelivr.net/gh/cgarbin/face-api.js@master/weights';
+                
+                // === [ACTUALIZACIÓN IMPORTANTE: URL ESTABLE PARA MODELOS IA] ===
+                const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights';
+                
                 await Promise.all([
                     faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
                     faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
