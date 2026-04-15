@@ -7,35 +7,34 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#1e3a8a">
     
-    <!-- Íconos para la pestaña del navegador y acceso directo en celulares -->
+    <!-- Íconos -->
     <link rel="icon" href="https://lh3.googleusercontent.com/d/1tSpUZqyG9UQzsDB96OMA1jzPuvhTmO_V" type="image/png">
     <link rel="shortcut icon" href="https://lh3.googleusercontent.com/d/1tSpUZqyG9UQzsDB96OMA1jzPuvhTmO_V" type="image/png">
     <link rel="apple-touch-icon" href="https://lh3.googleusercontent.com/d/1tSpUZqyG9UQzsDB96OMA1jzPuvhTmO_V">
     
     <title>Sistema de Asistencia - UGEL SBBA</title>
+    
+    <!-- Tailwind & Iconos -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- LIBRERÍA DE INTELIGENCIA ARTIFICIAL (BIOMETRÍA FACIAL) -->
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
     <style>
-        /* CONFIGURACIÓN ESTRICTA SIN SCROLL PARA PANTALLA COMPLETA NATIVA */
+        /* CONFIGURACIÓN PANTALLA COMPLETA NATIVA */
         body {
             font-family: 'Inter', sans-serif;
             background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden; /* Bloquea todo el scroll vertical y horizontal */
-            overscroll-behavior: none;
-            touch-action: none; /* Previene gestos del navegador */
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            width: 100vw; height: 100vh;
+            overflow: hidden; overscroll-behavior: none; touch-action: none;
         }
         .glass-card {
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
         }
-        
         .toast-enter { animation: slideIn 0.3s ease-out forwards; }
         .toast-leave { animation: slideOut 0.3s ease-in forwards; }
         @keyframes slideIn { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -44,31 +43,25 @@
 </head>
 <body class="text-slate-800 antialiased flex flex-col">
 
-    <!-- Bloqueo para Computadoras (Solo Móviles) -->
+    <!-- Bloqueo para Computadoras -->
     <div id="desktop-blocker" class="fixed inset-0 bg-slate-900 z-[9999] hidden flex-col items-center justify-center p-6 text-center text-white">
         <i class="fa-solid fa-mobile-screen-button text-7xl mb-6 text-blue-400 animate-pulse"></i>
         <h2 class="text-3xl font-bold mb-3">Acceso Denegado</h2>
         <p class="text-slate-300 max-w-md text-lg">Este sistema de asistencia está diseñado exclusivamente para ejecutarse en <b>teléfonos móviles</b> (Android o iPhone) por motivos de seguridad, GPS y biometría.</p>
-        <p class="text-slate-500 mt-8 text-sm">Por favor, abre el enlace desde tu celular.</p>
     </div>
 
-    <!-- Pantalla de Carga Animada (0 al 100%) -->
+    <!-- Pantalla de Carga Animada -->
     <div id="global-loader" class="fixed inset-0 bg-gradient-to-br from-blue-50 to-slate-100 z-[999] flex flex-col items-center justify-center transition-opacity duration-500 p-6 text-center">
-        
         <div class="relative mb-6">
-            <!-- Efecto de resplandor detrás del logo -->
             <div class="absolute inset-0 bg-blue-400 rounded-full blur-2xl opacity-40 animate-pulse"></div>
-            <!-- Logo UGEL Surcubamba Animado -->
             <img src="https://lh3.googleusercontent.com/d/1tSpUZqyG9UQzsDB96OMA1jzPuvhTmO_V" alt="Logo Institucional" class="w-32 h-32 object-contain relative z-10 animate-bounce drop-shadow-xl">
         </div>
-        
         <h2 class="text-2xl font-bold text-blue-900 tracking-tight">UGEL Surcubamba</h2>
-        <p class="text-sm text-slate-500 mt-1 mb-10">Iniciando Sistema de Asistencia...</p>
+        <p class="text-sm text-slate-500 mt-1 mb-10" id="loader-subtext">Iniciando Sistema de Asistencia...</p>
 
-        <!-- Barra de Progreso -->
         <div class="w-full max-w-xs">
             <div class="flex justify-between text-xs font-semibold text-blue-800 mb-1.5 px-1">
-                <span>Conectando Base de Datos</span>
+                <span id="progress-desc">Conectando Base de Datos...</span>
                 <span id="progress-text">0%</span>
             </div>
             <div class="w-full bg-blue-100 rounded-full h-3 overflow-hidden shadow-inner">
@@ -97,20 +90,18 @@
         </div>
     </nav>
 
-    <!-- Main Content Ajustado (Sin Scroll) -->
+    <!-- Main Content -->
     <main class="w-full h-full pt-16 flex flex-col items-center justify-center px-4 mx-auto max-w-md">
         
         <!-- ================= VISTA: EMPLEADO ================= -->
         <section id="view-empleado" class="w-full flex flex-col justify-center animate-fade-in">
             <div class="glass-card rounded-2xl p-4 shadow-sm">
                 
-                <!-- Reloj (Más compacto) -->
                 <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center mb-3 shadow-inner">
                     <div id="live-time" class="text-3xl font-bold text-slate-700 tracking-wider font-mono">00:00:00</div>
                     <div id="live-date" class="text-xs text-slate-500 mt-0.5 font-medium">Cargando fecha...</div>
                 </div>
 
-                <!-- Status de Ubicación -->
                 <div class="mb-3 bg-slate-50 rounded-xl p-3 border border-slate-200 flex items-start gap-2.5 transition-colors duration-300" id="gps-status-box">
                     <div class="mt-0.5 w-7 h-7 rounded-full flex items-center justify-center" id="gps-icon-container">
                         <i class="fa-solid fa-location-crosshairs text-slate-400 animate-spin" id="gps-icon"></i>
@@ -121,19 +112,17 @@
                     </div>
                 </div>
 
-                <!-- Status de Cámara -->
                 <div class="mb-3 bg-slate-50 rounded-xl p-3 border border-slate-200 flex items-start gap-2.5 transition-colors duration-300" id="cam-status-box">
                     <div class="mt-0.5 w-7 h-7 rounded-full flex items-center justify-center bg-slate-100" id="cam-icon-container">
                         <i class="fa-solid fa-camera text-slate-400" id="cam-icon"></i>
                     </div>
                     <div class="flex-1">
-                        <h4 class="text-sm font-semibold text-slate-800 leading-tight" id="cam-title">Validación de identidad</h4>
-                        <p class="text-[11px] text-slate-500 leading-tight mt-0.5" id="cam-desc">Solicitando permisos de cámara para validar registro...</p>
+                        <h4 class="text-sm font-semibold text-slate-800 leading-tight" id="cam-title">Cámara Biométrica</h4>
+                        <p class="text-[11px] text-slate-500 leading-tight mt-0.5" id="cam-desc">Solicitando permisos para validación de rostro...</p>
                     </div>
                 </div>
 
                 <form id="attendance-form" class="space-y-3" onsubmit="event.preventDefault();">
-                    <!-- Elementos ocultos para la cámara silenciosa -->
                     <video id="camera-stream" autoplay playsinline muted class="absolute opacity-0 pointer-events-none -z-10 w-1 h-1"></video>
                     <canvas id="camera-canvas" class="hidden"></canvas>
 
@@ -161,7 +150,6 @@
                         </div>
                     </div>
 
-                    <!-- Botón Unificado de Acción -->
                     <div class="pt-1">
                         <button type="button" onclick="registerAttendance()" id="btn-marcar" disabled class="w-full bg-red-600 hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-xl shadow-sm hover:shadow-md transition-all flex justify-center items-center gap-2">
                             <i class="fa-solid fa-fingerprint text-lg"></i>
@@ -170,17 +158,16 @@
                     </div>
                 </form>
                 
-                <!-- Nota Legal y de Privacidad -->
                 <div class="mt-3 p-3 bg-blue-50/50 rounded-lg border border-blue-100">
                     <p class="text-[9px] leading-tight text-slate-500 text-justify">
-                        <i class="fa-solid fa-shield-halved text-blue-500 mr-1"></i>
-                        <b>Aviso Privacidad:</b> Al presionar "Marcar Asistencia" aceptas el registro de ubicación GPS y captura fotográfica biométrica en segundo plano de uso exclusivo para UGEL SBBA. El sistema detecta Entrada o Salida automáticamente.
+                        <i class="fa-solid fa-user-lock text-blue-500 mr-1"></i>
+                        <b>Seguridad IA:</b> El sistema requiere tu rostro frente al celular para la validación biométrica. Si tu rostro no coincide con la foto registrada en la base de datos, el acceso será denegado.
                     </p>
                 </div>
             </div>
         </section>
 
-        <!-- ================= VISTA: RRHH PANEL (Adaptada para Móvil) ================= -->
+        <!-- ================= VISTA: RRHH PANEL ================= -->
         <section id="view-rrhh" class="w-full hidden animate-fade-in flex-col h-full py-4">
             <!-- Modal de Login RRHH -->
             <div id="rrhh-login" class="w-full glass-card rounded-2xl p-6">
@@ -191,8 +178,8 @@
                     <h2 class="text-xl font-bold text-blue-800">Acceso Restringido</h2>
                 </div>
                 <div class="space-y-3">
-                    <input type="password" id="rrhh-password" placeholder="Contraseña Admin" class="block w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
-                    <button onclick="loginRRHH()" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-medium py-2.5 rounded-lg text-sm">Ingresar</button>
+                    <input type="password" id="rrhh-password" placeholder="Contraseña de Administrador" class="block w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
+                    <button id="btn-login-rrhh" onclick="loginRRHH()" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-medium py-2.5 rounded-lg text-sm">Ingresar</button>
                 </div>
             </div>
 
@@ -202,14 +189,12 @@
                     <h2 class="text-lg font-bold text-slate-800">Panel Admin</h2>
                 </div>
 
-                <!-- Sub-navegación RRHH -->
                 <div class="flex border-b border-slate-200 mb-3 w-full justify-between">
                     <button onclick="switchRrhhTab('registros')" id="rtab-registros" class="pb-2 text-xs font-medium border-b-2 border-red-600 text-red-600 transition-colors flex-1">Asistencias</button>
                     <button onclick="switchRrhhTab('personal')" id="rtab-personal" class="pb-2 text-xs font-medium border-b-2 border-transparent text-slate-500 transition-colors flex-1">Personal</button>
                     <button onclick="switchRrhhTab('sedes')" id="rtab-sedes" class="pb-2 text-xs font-medium border-b-2 border-transparent text-slate-500 transition-colors flex-1">Sedes</button>
                 </div>
 
-                <!-- Contenedores con scroll interno en caso de mucha información -->
                 <div class="relative flex-1 w-full bg-white/60 rounded-xl border border-slate-200 overflow-y-auto">
                     
                     <!-- Vista: Registros -->
@@ -218,20 +203,21 @@
                             <span class="text-xs font-bold text-slate-700" id="stat-total">0 Registros</span>
                             <button onclick="loadLocalLogs()" class="text-blue-600 text-xs font-medium"><i class="fa-solid fa-rotate-right"></i> Actualizar</button>
                         </div>
-                        <div class="space-y-2" id="logs-list-mobile">
-                            <!-- JS Inject -->
-                        </div>
-                        <div id="empty-logs" class="p-4 text-center text-slate-500 hidden text-xs">
-                            No hay registros.
-                        </div>
+                        <div class="space-y-2" id="logs-list-mobile"></div>
+                        <div id="empty-logs" class="p-4 text-center text-slate-500 hidden text-xs">No hay registros.</div>
                     </div>
 
-                    <!-- Vista: Gestión de Personal -->
+                    <!-- Vista: Gestión de Personal (Con captura de foto) -->
                     <div id="rrhh-view-personal" class="hidden p-3 space-y-4">
                         <form id="form-personal" class="flex flex-col gap-2 bg-white p-3 rounded-lg border border-slate-100" onsubmit="addPersonal(event)">
                             <input type="text" id="new-emp-dni" placeholder="DNI" required class="px-3 py-2 border border-slate-300 rounded-lg text-xs">
                             <input type="text" id="new-emp-nombre" placeholder="Nombre Completo" required class="px-3 py-2 border border-slate-300 rounded-lg text-xs">
-                            <button type="submit" class="bg-slate-800 text-white px-3 py-2 rounded-lg text-xs font-medium"><i class="fa-solid fa-plus"></i> Guardar</button>
+                            
+                            <label class="text-[10px] text-slate-500 font-bold mt-1 uppercase"><i class="fa-solid fa-face-scan text-blue-500"></i> Foto de Referencia (Obligatorio)</label>
+                            <input type="file" id="new-emp-foto" accept="image/*" capture="user" required class="text-xs w-full file:mr-4 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                            
+                            <canvas id="ref-canvas" class="hidden"></canvas>
+                            <button type="submit" class="bg-slate-800 text-white px-3 py-2 rounded-lg text-xs font-medium mt-1"><i class="fa-solid fa-plus"></i> Guardar Empleado y Biometría</button>
                         </form>
                         <div class="space-y-2" id="personal-list-mobile"></div>
                     </div>
@@ -258,12 +244,12 @@
 
     </main>
 
-    <!-- Contenedor para notificaciones (Toasts) -->
+    <!-- Toasts -->
     <div id="toast-container" class="fixed bottom-4 right-0 left-0 px-4 z-50 flex flex-col gap-2 items-center pointer-events-none"></div>
 
     <script>
         /* ==========================================================================
-           1. CONFIGURACIÓN Y ESTADO GLOBAL (BACKEND)
+           1. CONFIGURACIÓN Y ESTADO GLOBAL
            ========================================================================== */
         
         let sedes = [];
@@ -276,76 +262,72 @@
         // ENLACE DE GOOGLE SHEETS
         const gasUrl = 'https://script.google.com/macros/s/AKfycbxfq_kDo7uIQwJ6oIxAxgDNHRT7t8V9jPiBBVqToYYuI884dXgrZsbKqhGWf_2NtPZsmw/exec'; 
 
-        // Controlador de la Base de Datos (Google Apps Script)
+        // Base de Datos
         const DB = {
             run: async function(method, ...args) {
                 if (typeof google !== 'undefined' && google.script && google.script.run) {
                     return new Promise((resolve, reject) => {
-                        google.script.run
-                            .withSuccessHandler(resolve)
-                            .withFailureHandler(reject)
-                            [method](...args);
+                        google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[method](...args);
                     });
                 } else if (gasUrl && gasUrl.startsWith('https://')) {
                     try {
                         const response = await fetch(gasUrl, {
-                            method: 'POST',
-                            body: JSON.stringify({ action: method, params: args }),
+                            method: 'POST', body: JSON.stringify({ action: method, params: args }),
                             headers: { 'Content-Type': 'text/plain;charset=utf-8' } 
                         });
-                        
                         const text = await response.text();
                         try {
                             const result = JSON.parse(text);
-                            if (result.success) return result.data;
-                            else throw new Error(result.error);
+                            if (result.success) return result.data; else throw new Error(result.error);
                         } catch(e) {
                             if (text.includes('<html')) throw new Error("Acceso denegado por Google. Verifica la implementación.");
                             else throw new Error(text || "Respuesta vacía del servidor.");
                         }
-                    } catch (error) {
-                        throw new Error("Sin conexión a la Base de Datos.");
-                    }
-                } else {
-                    throw new Error("URL de DB inválida.");
-                }
+                    } catch (error) { throw new Error("Sin conexión a la Base de Datos."); }
+                } else { throw new Error("URL de DB inválida."); }
             }
         };
 
         /* ==========================================================================
-           2. INICIALIZACIÓN DE LA UI (CON RESTRICCIÓN DE DISPOSITIVO Y BARRA)
+           2. INICIALIZACIÓN DE LA UI E INTELIGENCIA ARTIFICIAL
            ========================================================================== */
         
         document.addEventListener('DOMContentLoaded', async () => {
-            // 1. RESTRICCIÓN: Solo permitir acceso en dispositivos móviles
             const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            
-            // Si quieres probar en PC mientras configuras, puedes comentar el bloque "if (!isMobile) { ... }"
             if (!isMobile) {
                 document.getElementById('desktop-blocker').classList.remove('hidden');
                 document.getElementById('desktop-blocker').style.display = 'flex';
                 document.getElementById('global-loader').classList.add('hidden');
-                return; // Detiene la ejecución completa de la app
+                return;
             }
 
             initReloj();
             
-            // 2. Simulación Visual de la Barra de Progreso (0 - 90%)
             let progress = 0;
             const bar = document.getElementById('progress-bar');
             const text = document.getElementById('progress-text');
+            const desc = document.getElementById('progress-desc');
             
             const progressInterval = setInterval(() => {
                 if (progress < 90) {
-                    progress += Math.floor(Math.random() * 10) + 2;
+                    progress += Math.floor(Math.random() * 10) + 1;
                     if (progress > 90) progress = 90;
-                    bar.style.width = progress + '%';
-                    text.innerText = progress + '%';
+                    bar.style.width = progress + '%'; text.innerText = progress + '%';
                 }
-            }, 150);
+            }, 200);
 
             try {
-                // 3. Descargar datos reales de Google Sheets en segundo plano
+                // 1. CARGAR MODELOS DE INTELIGENCIA ARTIFICIAL (FACE-API)
+                desc.innerText = "Cargando IA Biométrica...";
+                const MODEL_URL = 'https://cdn.jsdelivr.net/gh/cgarbin/face-api.js@master/weights';
+                await Promise.all([
+                    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+                ]);
+
+                // 2. OBTENER DATOS DE GOOGLE SHEETS
+                desc.innerText = "Sincronizando Servidor...";
                 const dbData = await DB.run('obtenerDatosIniciales');
                 sedes = dbData.sedes;
                 personal = dbData.personal;
@@ -354,21 +336,18 @@
                 startGPS();
                 startCamera();
                 
-                // 4. Conexión Exitosa: Llenar barra al 100% y ocultar pantalla
                 clearInterval(progressInterval);
-                bar.style.width = '100%';
-                text.innerText = '100%';
-                
+                bar.style.width = '100%'; text.innerText = '100%';
                 setTimeout(() => {
                     document.getElementById('global-loader').style.opacity = '0';
                     setTimeout(() => document.getElementById('global-loader').classList.add('hidden'), 500);
-                }, 600); // Pequeño retraso para que el usuario vea el 100%
+                }, 600);
 
             } catch (error) {
                 clearInterval(progressInterval);
                 document.getElementById('global-loader').innerHTML = `
                     <i class="fa-solid fa-triangle-exclamation text-red-600 text-6xl mb-4"></i>
-                    <h2 class="text-2xl font-bold text-slate-800">Error de Conexión</h2>
+                    <h2 class="text-2xl font-bold text-slate-800">Error Crítico</h2>
                     <p class="text-sm text-slate-600 mt-2 text-center px-4 max-w-sm">${error.message}</p>
                     <button onclick="location.reload()" class="mt-6 px-6 py-3 bg-blue-700 font-bold text-white rounded-full text-sm shadow-lg">Reintentar</button>
                 `;
@@ -390,38 +369,27 @@
             const select = document.getElementById('emp-sede');
             select.innerHTML = '<option value="" disabled selected>Selecciona tu Sede de Trabajo...</option>';
             sedes.forEach(s => {
-                const opt = document.createElement('option');
-                opt.value = s.id;
-                opt.textContent = s.nombre;
-                select.appendChild(opt);
+                const opt = document.createElement('option'); opt.value = s.id; opt.textContent = s.nombre; select.appendChild(opt);
             });
         }
 
         function switchTab(tabId) {
             document.querySelectorAll('section').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('nav button').forEach(el => {
-                el.classList.remove('text-red-600', 'bg-red-50');
-                el.classList.add('text-slate-500');
+                el.classList.remove('text-red-600', 'bg-red-50'); el.classList.add('text-slate-500');
             });
-            
             document.getElementById(`view-${tabId}`).classList.remove('hidden');
-            // Como view-rrhh es flex-col, asegurarnos de restaurar el display correcto
             if(tabId === 'rrhh') document.getElementById(`view-rrhh`).style.display = 'flex';
             else document.getElementById(`view-rrhh`).style.display = 'none';
 
             const btn = document.getElementById(`tab-${tabId}`);
-            btn.classList.remove('text-slate-500');
-            btn.classList.add('text-red-600', 'bg-red-50');
+            btn.classList.remove('text-slate-500'); btn.classList.add('text-red-600', 'bg-red-50');
 
-            if(tabId === 'rrhh') {
-                if(sessionStorage.getItem('rrhh_logged')) {
-                    document.getElementById('rrhh-login').classList.add('hidden');
-                    document.getElementById('rrhh-dashboard').classList.remove('hidden');
-                    document.getElementById('rrhh-dashboard').style.display = 'flex';
-                    loadLocalLogs();
-                    renderPersonalTable();
-                    renderSedesTable();
-                }
+            if(tabId === 'rrhh' && sessionStorage.getItem('rrhh_logged')) {
+                document.getElementById('rrhh-login').classList.add('hidden');
+                document.getElementById('rrhh-dashboard').classList.remove('hidden');
+                document.getElementById('rrhh-dashboard').style.display = 'flex';
+                loadLocalLogs(); renderPersonalTable(); renderSedesTable();
             }
         }
 
@@ -433,12 +401,10 @@
                 const empleado = personal.find(p => p.dni === empId);
                 if (empleado) {
                     displayEl.textContent = `👤 Empleado: ${empleado.nombre}`;
-                    displayEl.classList.remove('hidden', 'text-red-500');
-                    displayEl.classList.add('text-blue-600');
+                    displayEl.classList.remove('hidden', 'text-red-500'); displayEl.classList.add('text-blue-600');
                 } else {
                     displayEl.textContent = `❌ DNI no registrado.`;
-                    displayEl.classList.remove('hidden', 'text-blue-600');
-                    displayEl.classList.add('text-red-500');
+                    displayEl.classList.remove('hidden', 'text-blue-600'); displayEl.classList.add('text-red-500');
                 }
             }
         }
@@ -455,16 +421,16 @@
                 document.getElementById('cam-icon-container').classList.replace('bg-slate-100', 'bg-emerald-100');
                 document.getElementById('cam-icon').classList.replace('text-slate-400', 'text-emerald-600');
                 document.getElementById('cam-icon').classList.replace('fa-camera', 'fa-face-viewfinder');
-                document.getElementById('cam-title').textContent = "Identidad verificada";
-                document.getElementById('cam-desc').textContent = "Cámara lista para validación biométrica silenciosa.";
+                document.getElementById('cam-title').textContent = "Biometría Activada";
+                document.getElementById('cam-desc').textContent = "IA lista para escanear y validar tu rostro en vivo.";
             } catch (err) {
-                document.getElementById('cam-status-box').classList.replace('bg-slate-50', 'bg-orange-50');
-                document.getElementById('cam-status-box').classList.replace('border-slate-200', 'border-orange-200');
-                document.getElementById('cam-icon-container').classList.replace('bg-slate-100', 'bg-orange-100');
-                document.getElementById('cam-icon').classList.replace('text-slate-400', 'text-orange-600');
+                document.getElementById('cam-status-box').classList.replace('bg-slate-50', 'bg-red-50');
+                document.getElementById('cam-status-box').classList.replace('border-slate-200', 'border-red-200');
+                document.getElementById('cam-icon-container').classList.replace('bg-slate-100', 'bg-red-100');
+                document.getElementById('cam-icon').classList.replace('text-slate-400', 'text-red-600');
                 document.getElementById('cam-icon').classList.replace('fa-camera', 'fa-eye-slash');
-                document.getElementById('cam-title').textContent = "Cámara oculta bloqueada";
-                document.getElementById('cam-desc').textContent = "El sistema intentará registrar sin foto.";
+                document.getElementById('cam-title').textContent = "Cámara Bloqueada";
+                document.getElementById('cam-desc').textContent = "La asistencia requiere cámara para la validación de identidad.";
             }
         }
 
@@ -473,65 +439,42 @@
            ========================================================================== */
 
         function startGPS() {
-            if (!navigator.geolocation) {
-                updateGPSUI('error', 'GPS no soportado', 'Tu navegador no soporta geolocalización.');
-                return;
-            }
-            const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
+            if (!navigator.geolocation) { updateGPSUI('error', 'GPS no soportado', 'Tu navegador no soporta geolocalización.'); return; }
             gpsWatchId = navigator.geolocation.watchPosition(
                 (position) => {
                     currentLocation = { lat: position.coords.latitude, lng: position.coords.longitude, accuracy: position.coords.accuracy };
                     if(document.getElementById('emp-sede').value) checkGeofence();
                     else updateGPSUI('success', 'Ubicación obtenida', `Precisión: ${Math.round(position.coords.accuracy)}m.`);
                 },
-                (error) => {
-                    updateGPSUI('error', 'Error GPS', 'Activa el GPS para marcar.');
-                    disableButtons();
-                },
-                options
+                (error) => { updateGPSUI('error', 'Error GPS', 'Activa el GPS para marcar.'); disableButtons(); },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
-        }
-
-        function calcularDistancia(lat1, lon1, lat2, lon2) {
-            const R = 6371e3;
-            const φ1 = lat1 * Math.PI/180;
-            const φ2 = lat2 * Math.PI/180;
-            const a = Math.sin((lat2-lat1)*Math.PI/180/2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin((lon2-lon1)*Math.PI/180/2) ** 2;
-            return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
         }
 
         function checkGeofence() {
             const sedeId = document.getElementById('emp-sede').value;
             if(!sedeId || !currentLocation || sedes.length === 0) return;
-
             const sedeSeleccionada = sedes.find(s => s.id === sedeId);
             if(!sedeSeleccionada) return;
 
-            distanceToSede = calcularDistancia(currentLocation.lat, currentLocation.lng, sedeSeleccionada.lat, sedeSeleccionada.lng);
+            const R = 6371e3; const φ1 = currentLocation.lat * Math.PI/180; const φ2 = sedeSeleccionada.lat * Math.PI/180;
+            const a = Math.sin((sedeSeleccionada.lat-currentLocation.lat)*Math.PI/180/2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin((sedeSeleccionada.lng-currentLocation.lng)*Math.PI/180/2) ** 2;
+            distanceToSede = R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
 
             if(distanceToSede <= sedeSeleccionada.radio) {
-                updateGPSUI('success', 'Validado', `Dentro del rango (${Math.round(distanceToSede)}m).`);
-                enableButtons();
+                updateGPSUI('success', 'Ubicación Validada', `Dentro del rango (${Math.round(distanceToSede)}m).`); enableButtons();
             } else {
-                updateGPSUI('warning', 'Fuera de Rango', `A ${Math.round(distanceToSede)}m. Acércate a menos de ${sedeSeleccionada.radio}m.`);
-                disableButtons();
+                updateGPSUI('warning', 'Fuera de Rango', `A ${Math.round(distanceToSede)}m. Acércate a menos de ${sedeSeleccionada.radio}m.`); disableButtons();
             }
         }
 
         function updateGPSUI(status, title, desc) {
-            const box = document.getElementById('gps-status-box');
-            const icon = document.getElementById('gps-icon');
-            const iconC = document.getElementById('gps-icon-container');
-            
-            document.getElementById('gps-title').textContent = title;
-            document.getElementById('gps-desc').textContent = desc;
-            iconC.className = 'mt-0.5 w-7 h-7 rounded-full flex items-center justify-center';
-            icon.className = 'fa-solid';
+            const box = document.getElementById('gps-status-box'); const icon = document.getElementById('gps-icon'); const iconC = document.getElementById('gps-icon-container');
+            document.getElementById('gps-title').textContent = title; document.getElementById('gps-desc').textContent = desc;
+            iconC.className = 'mt-0.5 w-7 h-7 rounded-full flex items-center justify-center'; icon.className = 'fa-solid';
 
             box.className = 'mb-3 rounded-xl p-3 border flex items-start gap-2.5 transition-colors duration-300 ' + 
-                (status === 'success' ? 'bg-emerald-50 border-emerald-200' : 
-                 status === 'warning' ? 'bg-orange-50 border-orange-200' : 
-                 status === 'error' ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200');
+                (status === 'success' ? 'bg-emerald-50 border-emerald-200' : status === 'warning' ? 'bg-orange-50 border-orange-200' : status === 'error' ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200');
 
             if(status === 'success') { iconC.classList.add('bg-emerald-100'); icon.classList.add('fa-location-dot', 'text-emerald-600'); }
             else if(status === 'warning') { iconC.classList.add('bg-orange-100'); icon.classList.add('fa-triangle-exclamation', 'text-orange-600'); }
@@ -543,7 +486,7 @@
         function disableButtons() { const btn = document.getElementById('btn-marcar'); if(btn) btn.disabled = true; }
 
         /* ==========================================================================
-           4. LÓGICA DE REGISTRO (CAPTURA Y VALIDACIÓN AL CLIC)
+           4. LÓGICA DE ASISTENCIA Y VERIFICACIÓN FACIAL MATEMÁTICA
            ========================================================================== */
 
         async function registerAttendance() {
@@ -552,54 +495,74 @@
 
             if(!empId) { showToast('Por favor ingresa tu DNI', 'error'); return; }
 
-            let empleadoNombre = empId;
-            if (personal.length > 0) {
-                const empleado = personal.find(p => p.dni === empId);
-                if (!empleado) { showToast('DNI no registrado.', 'error'); return; }
-                empleadoNombre = `${empleado.nombre} (${empId})`;
+            const empleadoData = personal.find(p => p.dni === empId);
+            if (!empleadoData) { showToast('DNI no registrado.', 'error'); return; }
+
+            // Verificamos si el empleado tiene su rostro guardado en la base de datos
+            if (!empleadoData.descriptor || empleadoData.descriptor === "undefined") {
+                showToast('Este empleado no tiene foto biométrica registrada. Contactar a RRHH.', 'error'); return;
             }
 
+            const btn = document.getElementById('btn-marcar');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-face-viewfinder animate-pulse text-lg"></i><span>Analizando Biometría...</span>`;
+            disableButtons();
+
             let fotoBase64 = "";
-            if (cameraStream) {
+
+            try {
+                if (!cameraStream) throw new Error("Cámara denegada. Es obligatoria para biometría.");
+                
                 const video = document.getElementById('camera-stream');
+                if (video.videoWidth === 0) throw new Error("La cámara no está lista. Intenta de nuevo.");
+
+                // 1. EXTRAER EL ROSTRO DE LA CÁMARA EN VIVO
+                const liveDetection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+                if (!liveDetection) throw new Error("No detecto tu rostro. Mírala fijamente y con buena luz.");
+
+                // 2. COMPARAR CON EL MAPA MATEMÁTICO GUARDADO EN DB
+                const refDescriptorArray = JSON.parse(empleadoData.descriptor);
+                const refDescriptor = new Float32Array(refDescriptorArray);
+                
+                const distance = faceapi.euclideanDistance(refDescriptor, liveDetection.descriptor);
+                
+                // Si la distancia es mayor a 0.55, es el rostro de OTRA persona
+                if (distance > 0.55) {
+                    throw new Error("¡ALERTA FRAUDE! Tu rostro no coincide con el DNI ingresado.");
+                }
+
+                // 3. Capturar la foto final aprobada
                 const canvas = document.getElementById('camera-canvas');
-                if (video.videoWidth === 0) { showToast('Cámara iniciando... Intenta de nuevo.', 'warning'); return; }
                 canvas.width = 320;
                 canvas.height = (video.videoHeight / video.videoWidth) * 320 || 240;
                 canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
                 fotoBase64 = canvas.toDataURL('image/jpeg', 0.6); 
-                if (!fotoBase64 || fotoBase64.length < 1000) { showToast('Error al capturar la foto.', 'error'); return; }
-            } else {
-                showToast('Cámara obligatoria.', 'error'); return; 
-            }
 
-            let tipo = 'Entrada';
-            const cache = JSON.parse(localStorage.getItem('securetime_cache') || '[]').filter(l => l.id.includes(empId) && new Date(l.timestamp).toDateString() === new Date().toDateString());
-            if (cache.length > 0 && cache[0].tipo === 'Entrada') tipo = 'Salida';
+                btn.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin text-lg"></i><span>Enviando al Servidor...</span>`;
 
-            const payload = {
-                id: empleadoNombre, sede: sedes.find(s => s.id === sedeId).nombre,
-                tipo: tipo, lat: currentLocation.lat, lng: currentLocation.lng,
-                distancia: Math.round(distanceToSede), dispositivo: navigator.userAgent, foto: fotoBase64
-            };
+                // 4. GUARDAR EN GOOGLE SHEETS
+                let tipo = 'Entrada';
+                const cache = JSON.parse(localStorage.getItem('securetime_cache') || '[]').filter(l => l.id.includes(empId) && new Date(l.timestamp).toDateString() === new Date().toDateString());
+                if (cache.length > 0 && cache[0].tipo === 'Entrada') tipo = 'Salida';
 
-            const btn = document.getElementById('btn-marcar');
-            const originalHtml = btn.innerHTML;
-            btn.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin text-lg"></i><span>Registrando...</span>`;
-            disableButtons();
+                const payload = {
+                    id: `${empleadoData.nombre} (${empId})`, sede: sedes.find(s => s.id === sedeId).nombre,
+                    tipo: tipo, lat: currentLocation.lat, lng: currentLocation.lng,
+                    distancia: Math.round(distanceToSede), dispositivo: navigator.userAgent, foto: fotoBase64
+                };
 
-            try {
                 const res = await DB.run('guardarAsistencia', payload);
                 if (res && res.success) {
-                    showToast(`¡${tipo} registrada correctamente!`, 'success');
+                    showToast(`¡Biometría Exitosa! ${tipo} registrada.`, 'success');
                     let newCache = JSON.parse(localStorage.getItem('securetime_cache') || '[]');
                     newCache.unshift({...payload, timestamp: res.timestamp});
                     localStorage.setItem('securetime_cache', JSON.stringify(newCache));
                     document.getElementById('emp-id').value = '';
                     document.getElementById('emp-name-display').classList.add('hidden');
                 }
+
             } catch (error) {
-                showToast(error.message || 'Error al conectar con DB.', 'error');
+                showToast(error.message, 'error');
             } finally {
                 btn.innerHTML = originalHtml;
                 checkGeofence();
@@ -607,18 +570,29 @@
         }
 
         /* ==========================================================================
-           5. PANEL DE RRHH Y CONFIGURACIONES (AHOARA CONECTADO A SHEETS)
+           5. PANEL DE RRHH Y CONFIGURACIONES
            ========================================================================== */
 
-        function loginRRHH() {
-            if(btoa(document.getElementById('rrhh-password').value) === 'QWRtaW4yMDI2Kg==') { 
-                sessionStorage.setItem('rrhh_logged', 'true');
-                document.getElementById('rrhh-login').classList.add('hidden');
-                document.getElementById('rrhh-dashboard').classList.remove('hidden');
-                document.getElementById('rrhh-dashboard').style.display = 'flex';
-                loadLocalLogs(); renderPersonalTable(); renderSedesTable();
-            } else {
-                showToast('Contraseña incorrecta', 'error');
+        async function loginRRHH() {
+            const pass = document.getElementById('rrhh-password').value;
+            const btn = document.getElementById('btn-login-rrhh');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verificando...'; btn.disabled = true;
+
+            try {
+                // Validación Segura usando el Backend de Google Sheets (No se puede ver la clave en el HTML)
+                const isOk = await DB.run('verificarAdmin', pass);
+                if (isOk) {
+                    sessionStorage.setItem('rrhh_logged', 'true');
+                    document.getElementById('rrhh-login').classList.add('hidden');
+                    document.getElementById('rrhh-dashboard').classList.remove('hidden');
+                    document.getElementById('rrhh-dashboard').style.display = 'flex';
+                    loadLocalLogs(); renderPersonalTable(); renderSedesTable();
+                    showToast('Acceso Autorizado', 'success');
+                }
+            } catch(e) {
+                showToast('Contraseña incorrecta o Error de Conexión', 'error');
+            } finally {
+                btn.innerHTML = 'Ingresar'; btn.disabled = false;
             }
         }
 
@@ -636,8 +610,7 @@
                 list.innerHTML = '';
                 logs.forEach(log => {
                     const date = new Date(log.timestamp);
-                    const isEntrada = log.tipo === 'Entrada';
-                    const color = isEntrada ? 'text-emerald-600 bg-emerald-100' : 'text-orange-600 bg-orange-100';
+                    const color = log.tipo === 'Entrada' ? 'text-emerald-600 bg-emerald-100' : 'text-orange-600 bg-orange-100';
                     const fotoHtml = log.foto ? `<img src="${log.foto}" class="w-8 h-8 rounded-full object-cover">` : `<div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center"><i class="fa-solid fa-user text-slate-400 text-xs"></i></div>`;
                     let name = log.id; if(log.id.includes('(')) name = log.id.match(/(.*)\s\((.*)\)/)[1];
 
@@ -666,7 +639,7 @@
             document.getElementById(`rtab-${viewId}`).classList.add('border-red-600', 'text-red-600');
         }
 
-        // ================= GESTIÓN DE PERSONAL =================
+        // ================= GESTIÓN DE PERSONAL (AHORA CON EXTRACCIÓN BIOMÉTRICA) =================
         function renderPersonalTable() {
             const list = document.getElementById('personal-list-mobile');
             if (personal.length === 0) { list.innerHTML = `<div class="text-xs text-slate-500 text-center py-4">No hay personal.</div>`; return; }
@@ -675,7 +648,7 @@
                 list.innerHTML += `
                     <div class="bg-white p-2.5 rounded-lg border border-slate-100 flex justify-between items-center shadow-sm">
                         <div class="flex flex-col min-w-0">
-                            <span class="text-xs font-bold text-slate-800 truncate">${p.nombre}</span>
+                            <span class="text-xs font-bold text-slate-800 truncate"><i class="fa-solid fa-face-smile text-emerald-500 mr-1"></i> ${p.nombre}</span>
                             <span class="text-[10px] text-slate-500 font-mono">${p.dni}</span>
                         </div>
                         <button onclick="deletePersonal('${p.dni}')" class="text-red-500 p-1"><i class="fa-regular fa-trash-can text-sm"></i></button>
@@ -683,26 +656,63 @@
             });
         }
 
+        // Función auxiliar para convertir el archivo de imagen en un elemento HTML validable
+        function fileToImage(file) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(img); img.onerror = reject; img.src = URL.createObjectURL(file);
+            });
+        }
+
         async function addPersonal(e) {
             e.preventDefault();
             const dni = document.getElementById('new-emp-dni').value.trim();
             const nombre = document.getElementById('new-emp-nombre').value.trim();
-            if (personal.find(p => p.dni === dni)) { showToast('DNI ya existe', 'error'); return; }
+            const fileInput = document.getElementById('new-emp-foto');
 
-            const btn = e.target.querySelector('button');
-            const originalText = btn.innerHTML; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; btn.disabled = true;
+            if (personal.find(p => p.dni === dni)) { showToast('El DNI ya existe', 'error'); return; }
+            if (!fileInput.files || fileInput.files.length === 0) { showToast('Debes tomar una foto', 'error'); return; }
+
+            const btn = e.target.querySelector('button[type="submit"]');
+            const originalText = btn.innerHTML; 
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Procesando Biometría...'; btn.disabled = true;
 
             try {
-                await DB.run('agregarPersonal', dni, nombre);
-                personal.push({ dni, nombre });
-                document.getElementById('new-emp-dni').value = ''; document.getElementById('new-emp-nombre').value = '';
-                renderPersonalTable(); showToast('Empleado guardado', 'success');
-            } catch (err) { showToast('Error al guardar', 'error'); } 
-            finally { btn.innerHTML = originalText; btn.disabled = false; }
+                // 1. Extraer el rostro de la foto subida
+                const img = await fileToImage(fileInput.files[0]);
+                const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+                
+                if (!detection) {
+                    showToast('No se detectó un rostro en la foto. Toma otra.', 'error');
+                    btn.innerHTML = originalText; btn.disabled = false; return;
+                }
+
+                // 2. Convertir el mapa de rostro en texto para guardarlo en la base de datos
+                const descriptorStr = JSON.stringify(Array.from(detection.descriptor));
+
+                // 3. Comprimir la imagen para guardarla en Drive
+                const canvas = document.getElementById('ref-canvas');
+                canvas.width = 320; canvas.height = (img.height / img.width) * 320;
+                canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                const fotoBase64 = canvas.toDataURL('image/jpeg', 0.6);
+
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando en Servidor...';
+                
+                // 4. Enviar a Google Sheets
+                await DB.run('agregarPersonal', { dni, nombre, descriptor: descriptorStr, foto: fotoBase64 });
+                
+                personal.push({ dni, nombre, descriptor: descriptorStr });
+                document.getElementById('new-emp-dni').value = ''; document.getElementById('new-emp-nombre').value = ''; fileInput.value = '';
+                renderPersonalTable(); showToast('Empleado y Rostro Guardados', 'success');
+            } catch (err) { 
+                showToast('Error: ' + err.message, 'error'); 
+            } finally { 
+                btn.innerHTML = originalText; btn.disabled = false; 
+            }
         }
 
         async function deletePersonal(dni) {
-            if(confirm('¿Eliminar empleado?')) {
+            if(confirm('¿Eliminar empleado? Su registro biométrico se borrará.')) {
                 try {
                     await DB.run('eliminarPersonal', dni);
                     personal = personal.filter(p => p.dni !== dni);
@@ -730,19 +740,14 @@
         async function addSede(e) {
             e.preventDefault();
             const nuevaSede = {
-                id: 'sede_' + Date.now(),
-                nombre: document.getElementById('new-sede-nombre').value.trim(),
-                lat: parseFloat(document.getElementById('new-sede-lat').value),
-                lng: parseFloat(document.getElementById('new-sede-lng').value),
+                id: 'sede_' + Date.now(), nombre: document.getElementById('new-sede-nombre').value.trim(),
+                lat: parseFloat(document.getElementById('new-sede-lat').value), lng: parseFloat(document.getElementById('new-sede-lng').value),
                 radio: parseInt(document.getElementById('new-sede-radio').value) || 100
             };
-
-            const btn = e.target.querySelector('button');
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; btn.disabled = true;
+            const btn = e.target.querySelector('button'); btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; btn.disabled = true;
 
             try {
-                await DB.run('agregarSede', nuevaSede);
-                sedes.push(nuevaSede);
+                await DB.run('agregarSede', nuevaSede); sedes.push(nuevaSede);
                 document.getElementById('new-sede-nombre').value = ''; document.getElementById('new-sede-lat').value = ''; document.getElementById('new-sede-lng').value = '';
                 renderSedesTable(); populateSedes(); showToast('Sede guardada', 'success');
             } catch (err) { showToast('Error al guardar', 'error'); } 
@@ -753,24 +758,21 @@
             if(sedes.length <= 1) { showToast('Debe haber 1 sede.', 'error'); return; }
             if(confirm('¿Eliminar sede?')) {
                 try {
-                    await DB.run('eliminarSede', id);
-                    sedes = sedes.filter(s => s.id !== id);
+                    await DB.run('eliminarSede', id); sedes = sedes.filter(s => s.id !== id);
                     renderSedesTable(); populateSedes(); showToast('Eliminada', 'success');
                 } catch (err) { showToast('Error al eliminar', 'error'); }
             }
         }
 
         /* ==========================================================================
-           6. UTILIDADES (Toasts compactos para móvil)
+           6. UTILIDADES
            ========================================================================== */
         
         function showToast(message, type = 'info') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             
-            let bgClass = 'bg-slate-800 text-white';
-            let icon = 'fa-info-circle text-blue-400';
-            
+            let bgClass = 'bg-slate-800 text-white'; let icon = 'fa-info-circle text-blue-400';
             if(type === 'success') { icon = 'fa-check-circle text-emerald-400'; }
             if(type === 'error') { bgClass = 'bg-red-600 text-white'; icon = 'fa-triangle-exclamation text-white'; }
             if(type === 'warning') { bgClass = 'bg-orange-500 text-white'; icon = 'fa-circle-exclamation text-white'; }
@@ -779,10 +781,7 @@
             toast.innerHTML = `<i class="fa-solid ${icon}"></i> <span>${message}</span>`;
             
             container.appendChild(toast);
-            setTimeout(() => {
-                toast.classList.replace('toast-enter', 'toast-leave');
-                setTimeout(() => toast.remove(), 300);
-            }, 2500);
+            setTimeout(() => { toast.classList.replace('toast-enter', 'toast-leave'); setTimeout(() => toast.remove(), 300); }, 3500);
         }
 
     </script>
