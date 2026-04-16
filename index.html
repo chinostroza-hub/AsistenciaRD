@@ -232,6 +232,7 @@
                             <canvas id="ref-canvas" class="hidden"></canvas>
                             <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-lg text-xs font-medium mt-1 transition-colors"><i class="fa-solid fa-plus"></i> Guardar Empleado y Biometría</button>
                         </form>
+                        <input type="file" id="update-emp-foto" accept="image/*" capture="user" class="hidden" onchange="processUpdateFoto(event)">
                         <div class="space-y-2" id="personal-list-mobile"></div>
                     </div>
 
@@ -690,7 +691,10 @@
                             <span class="text-xs font-bold text-slate-800 truncate"><i class="fa-solid fa-face-smile text-emerald-500 mr-1"></i> ${p.nombre}</span>
                             <span class="text-[10px] text-slate-500 font-mono">${p.dni}</span>
                         </div>
-                        <button onclick="deletePersonal('${p.dni}')" class="text-red-500 p-1"><i class="fa-regular fa-trash-can text-sm"></i></button>
+                        <div class="flex gap-1">
+                            <button onclick="triggerUpdateFoto('${p.dni}')" class="text-blue-500 p-1" title="Actualizar Foto"><i class="fa-solid fa-camera-rotate text-sm"></i></button>
+                            <button onclick="deletePersonal('${p.dni}')" class="text-red-500 p-1" title="Eliminar"><i class="fa-regular fa-trash-can text-sm"></i></button>
+                        </div>
                     </div>`;
             });
         }
@@ -757,6 +761,50 @@
                     personal = personal.filter(p => p.dni !== dni);
                     renderPersonalTable(); showToast('Eliminado', 'success');
                 } catch(err) { showToast('Error al eliminar', 'error'); }
+            }
+        }
+
+        let currentUpdateDni = null;
+
+        function triggerUpdateFoto(dni) {
+            currentUpdateDni = dni;
+            document.getElementById('update-emp-foto').click();
+        }
+
+        async function processUpdateFoto(e) {
+            const fileInput = e.target;
+            if (!fileInput.files || fileInput.files.length === 0) return;
+            if (!currentUpdateDni) return;
+
+            showToast('Procesando nueva biometría...', 'info');
+
+            try {
+                const img = await fileToImage(fileInput.files[0]);
+                const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+                
+                if (!detection) {
+                    showToast('No se detectó rostro. Toma otra foto.', 'error');
+                    fileInput.value = ''; return;
+                }
+
+                const descriptorStr = JSON.stringify(Array.from(detection.descriptor));
+                const canvas = document.getElementById('ref-canvas');
+                canvas.width = 320; canvas.height = (img.height / img.width) * 320;
+                canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                const fotoBase64 = canvas.toDataURL('image/jpeg', 0.6);
+
+                showToast('Actualizando Servidor...', 'info');
+                
+                await DB.run('actualizarFotoPersonal', { dni: currentUpdateDni, descriptor: descriptorStr, foto: fotoBase64 });
+                
+                const empIndex = personal.findIndex(p => p.dni === currentUpdateDni);
+                if (empIndex !== -1) personal[empIndex].descriptor = descriptorStr;
+                
+                showToast('Foto y Biometría Actualizadas', 'success');
+            } catch (err) { 
+                showToast('Error: ' + err.message, 'error'); 
+            } finally { 
+                fileInput.value = ''; currentUpdateDni = null; 
             }
         }
 
