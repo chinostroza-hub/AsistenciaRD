@@ -52,12 +52,15 @@
 
     <!-- Pantalla de Carga Animada -->
     <div id="global-loader" class="fixed inset-0 bg-gradient-to-br from-blue-50 to-slate-100 z-[999] flex flex-col items-center justify-center transition-opacity duration-500 p-6 text-center">
+        
+        <h2 class="text-3xl font-bold text-blue-900 tracking-tight">UGEL Surcubamba</h2>
+        <h3 class="text-sm font-bold text-blue-700 mt-1 mb-8 tracking-wide">CONTROL DE ASISTENCIA (Redes educativas)</h3>
+
         <div class="relative mb-6">
             <div class="absolute inset-0 bg-blue-400 rounded-full blur-2xl opacity-40 animate-pulse"></div>
             <img src="https://lh3.googleusercontent.com/d/1tSpUZqyG9UQzsDB96OMA1jzPuvhTmO_V" alt="Logo Institucional" class="w-32 h-32 object-contain relative z-10 animate-bounce drop-shadow-xl">
         </div>
-        <h2 class="text-2xl font-bold text-blue-900 tracking-tight">UGEL Surcubamba</h2>
-        <h3 class="text-sm font-bold text-blue-700 mt-1 tracking-wide">CONTROL DE ASISTENCIA (Redes educativas)</h3>
+        
         <p class="text-sm text-slate-500 mt-2 mb-8" id="loader-subtext">Iniciando Sistema de Asistencia...</p>
 
         <div class="w-full max-w-xs">
@@ -260,13 +263,13 @@
 
     </main>
 
-    <!-- Footer (Copyright) -->
-    <div class="absolute bottom-2 w-full text-center z-0 pointer-events-none">
-        <p class="text-[9px] font-medium text-slate-400">© Copyright Versión 1.0.0 - UGEL Surcubamba</p>
+    <!-- Footer (Copyright) SIEMPRE VISIBLE -->
+    <div class="fixed bottom-3 left-0 right-0 w-full text-center z-[990] pointer-events-none">
+        <p class="text-[10px] font-bold text-slate-600 bg-white/70 backdrop-blur-sm inline-block px-4 py-1.5 rounded-full shadow-sm border border-slate-200/50">© Copyright Versión 1.0.0 - UGEL Surcubamba</p>
     </div>
 
     <!-- Toasts -->
-    <div id="toast-container" class="fixed bottom-8 right-0 left-0 px-4 z-50 flex flex-col gap-2 items-center pointer-events-none"></div>
+    <div id="toast-container" class="fixed bottom-12 right-0 left-0 px-4 z-[9999] flex flex-col gap-2 items-center pointer-events-none"></div>
 
     <script>
         /* ==========================================================================
