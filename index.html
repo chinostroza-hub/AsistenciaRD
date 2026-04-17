@@ -155,6 +155,14 @@
                         </div>
                     </div>
 
+                    <!-- NUEVO: Checkbox de Términos y Condiciones -->
+                    <div class="flex items-center gap-2 pt-1 px-1">
+                        <input type="checkbox" id="chk-terminos" onchange="checkGeofence()" class="w-5 h-5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer shadow-sm">
+                        <label for="chk-terminos" class="text-xs text-slate-700 font-medium cursor-pointer">
+                            Acepto <a href="#" onclick="openTerminos(event)" class="text-blue-600 hover:text-blue-800 underline font-bold">términos y condiciones</a>
+                        </label>
+                    </div>
+
                     <div class="pt-1">
                         <button type="button" onclick="registerAttendance()" id="btn-marcar" disabled class="w-full bg-red-600 hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-xl shadow-sm hover:shadow-md transition-all flex justify-center items-center gap-2">
                             <i class="fa-solid fa-fingerprint text-lg"></i>
@@ -168,6 +176,10 @@
                         <i class="fa-solid fa-user-lock text-blue-500 mr-1"></i>
                         <b>Seguridad IA:</b> El sistema requiere tu rostro frente al celular para la validación biométrica. Si tu rostro no coincide con la foto registrada en la base de datos, el acceso será denegado. He leido y acepto los terminos de uso de cámara y tratamiento de mi imagen para el control de asistencia.
                     </p>
+                </div>
+
+                <div class="mt-3 p-2 bg-slate-50/80 rounded-lg border border-slate-200 text-center shadow-sm">
+                    <p class="text-[9px] font-bold text-slate-500">© Copyright Versión 1.0.0 - UGEL Surcubamba</p>
                 </div>
 
             </div>
@@ -271,6 +283,29 @@
         <p class="text-[10px] font-bold text-slate-600 bg-white/70 backdrop-blur-sm inline-block px-4 py-1.5 rounded-full shadow-sm border border-slate-200/50">© Copyright Versión 1.0.0 - UGEL Surcubamba</p>
     </div>
 
+    <!-- Modal Flotante de Términos y Condiciones -->
+    <div id="modal-terminos" class="fixed inset-0 bg-slate-900/60 z-[9999] hidden flex-col items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[85vh] transform transition-transform scale-95" id="modal-terminos-content">
+            <div class="px-4 py-3 border-b border-slate-100 flex justify-between items-center bg-blue-50">
+                <h3 class="font-bold text-blue-800 text-sm"><i class="fa-solid fa-file-contract mr-1"></i> Aviso de Privacidad</h3>
+                <button onclick="closeTerminos()" class="text-slate-400 hover:text-slate-600 transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-5 overflow-y-auto text-xs text-slate-600 text-justify space-y-3 leading-relaxed">
+                <p><b>Registro mediante Verificación Fotográfica:</b> Se informa al colaborador, funcionario o servidor que el sistema de control de asistencia de Unidad de Gestión Educativa Local Surcubamba utiliza una función de captura fotográfica instantánea al momento de cada marcaje.</p>
+                <p class="font-bold text-slate-700 border-b pb-1 mt-2">Términos del servicio:</p>
+                <ul class="list-disc pl-4 space-y-2">
+                    <li><b>Propósito:</b> La captura tiene como única finalidad la validación de identidad del usuario para prevenir la suplantación y garantizar la veracidad de los registros de jornada laboral.</li>
+                    <li><b>Seguridad:</b> Los datos de imagen capturados serán tratados como información confidencial y almacenados bajo estrictas medidas de seguridad técnica de la entidad.</li>
+                    <li><b>Uso del Dispositivo:</b> El acceso a la cámara es temporal y restringido exclusivamente al acto del fichaje, sin acceso a la galería personal del usuario.</li>
+                </ul>
+                <p class="pt-3 font-medium text-slate-700 text-center border-t border-slate-100 mt-2 pt-3">Al hacer clic en "ACEPTAR", usted otorga su consentimiento expreso para el tratamiento de su imagen conforme a nuestra Política de Protección de Datos Personales.</p>
+            </div>
+            <div class="p-3 border-t border-slate-100 bg-slate-50 text-center">
+                <button onclick="closeTerminos()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-xs font-bold w-full transition-colors shadow-sm">Entendido y Acepto</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toasts -->
     <div id="toast-container" class="fixed bottom-12 right-0 left-0 px-4 z-[9999] flex flex-col gap-2 items-center pointer-events-none"></div>
 
@@ -288,7 +323,7 @@
         
         let rrhh_logged = false;
         let securetime_cache = [];
-        let editingSedeId = null; // Variable para gestionar la edición de sedes
+        let editingSedeId = null; 
 
         // ENLACE DE GOOGLE SHEETS
         const gasUrl = 'https://script.google.com/macros/s/AKfycbxfq_kDo7uIQwJ6oIxAxgDNHRT7t8V9jPiBBVqToYYuI884dXgrZsbKqhGWf_2NtPZsmw/exec'; 
@@ -487,9 +522,9 @@
 
         function checkGeofence() {
             const sedeId = document.getElementById('emp-sede').value;
-            if(!sedeId || !currentLocation || sedes.length === 0) return;
+            if(!sedeId || !currentLocation || sedes.length === 0) { disableButtons(); return; }
             const sedeSeleccionada = sedes.find(s => s.id === sedeId);
-            if(!sedeSeleccionada) return;
+            if(!sedeSeleccionada) { disableButtons(); return; }
 
             const R = 6371e3; const φ1 = currentLocation.lat * Math.PI/180; const φ2 = sedeSeleccionada.lat * Math.PI/180;
             const a = Math.sin((sedeSeleccionada.lat-currentLocation.lat)*Math.PI/180/2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin((sedeSeleccionada.lng-currentLocation.lng)*Math.PI/180/2) ** 2;
@@ -516,8 +551,55 @@
             else { icon.classList.add('fa-location-crosshairs', 'text-slate-400', 'animate-spin'); }
         }
 
-        function enableButtons() { const btn = document.getElementById('btn-marcar'); if(btn) btn.disabled = false; }
-        function disableButtons() { const btn = document.getElementById('btn-marcar'); if(btn) btn.disabled = true; }
+        // Modificadas las funciones enable/disable para incluir la validación de la casilla de Términos
+        function enableButtons() { 
+            const btn = document.getElementById('btn-marcar'); 
+            const chk = document.getElementById('chk-terminos');
+            if(btn && chk && chk.checked) btn.disabled = false; 
+            else if(btn) btn.disabled = true;
+        }
+        function disableButtons() { 
+            const btn = document.getElementById('btn-marcar'); 
+            if(btn) btn.disabled = true; 
+        }
+
+        // Funciones para el Modal de Términos y Condiciones
+        function openTerminos(e) {
+            if(e) e.preventDefault();
+            const modal = document.getElementById('modal-terminos');
+            const content = document.getElementById('modal-terminos-content');
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+                content.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeTerminos() {
+            const modal = document.getElementById('modal-terminos');
+            const content = document.getElementById('modal-terminos-content');
+            const chk = document.getElementById('chk-terminos');
+            
+            // Si el usuario da a "Entendido", marcamos la casilla automáticamente para su comodidad.
+            if(chk) {
+                chk.checked = true;
+                checkGeofence(); // Re-evalúa para habilitar el botón si cumple las demás condiciones
+            }
+
+            modal.classList.add('opacity-0');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.style.display = 'none';
+            }, 300);
+        }
+
+        /* ==========================================================================
+           4. LÓGICA DE ASISTENCIA Y VERIFICACIÓN FACIAL MATEMÁTICA
+           ========================================================================== */
 
         async function registerAttendance() {
             const empId = document.getElementById('emp-id').value.trim();
@@ -580,15 +662,20 @@
                     securetime_cache.unshift({...payload, timestamp: res.timestamp});
                     document.getElementById('emp-id').value = '';
                     document.getElementById('emp-name-display').classList.add('hidden');
+                    document.getElementById('chk-terminos').checked = false; // Desmarcamos tras enviar
                 }
 
             } catch (error) {
                 showToast(error.message, 'error');
             } finally {
                 btn.innerHTML = originalHtml;
-                checkGeofence();
+                checkGeofence(); // Reevalúa si puede activar el botón de nuevo
             }
         }
+
+        /* ==========================================================================
+           5. PANEL DE RRHH Y CONFIGURACIONES
+           ========================================================================== */
 
         async function loginRRHH() {
             const pass = document.getElementById('rrhh-password').value;
@@ -793,7 +880,6 @@
             }
         }
 
-        // ================= GESTIÓN DE SEDES =================
         function renderSedesTable() {
             const list = document.getElementById('sedes-list-mobile');
             list.innerHTML = '';
