@@ -53,8 +53,9 @@
     <!-- Pantalla de Carga Animada -->
     <div id="global-loader" class="fixed inset-0 bg-gradient-to-br from-blue-50 to-slate-100 z-[999] flex flex-col items-center justify-center transition-opacity duration-500 p-6 text-center">
         
-        <h2 class="text-3xl font-bold text-blue-900 tracking-tight">UGEL Surcubamba</h2>
-        <h3 class="text-sm font-bold text-blue-700 mt-1 mb-8 tracking-wide">CONTROL DE ASISTENCIA (Redes educativas)</h3>
+        <h2 class="text-3xl font-bold text-blue-900 tracking-tight">UGEL SURCUBAMBA</h2>
+        <h3 class="text-sm font-bold text-blue-700 mt-1 mb-8 tracking-wide">CONTROL DE ASISTENCIA</h3>
+        <h3 class="text-sm font-bold text-blue-700 mt-1 mb-8 tracking-wide">(Redes Educativas Rurales)</h3>
 
         <div class="relative mb-6">
             <div class="absolute inset-0 bg-blue-400 rounded-full blur-2xl opacity-40 animate-pulse"></div>
@@ -165,13 +166,8 @@
                 <div class="mt-3 p-3 bg-blue-50/50 rounded-lg border border-blue-100">
                     <p class="text-[9px] leading-tight text-slate-500 text-justify">
                         <i class="fa-solid fa-user-lock text-blue-500 mr-1"></i>
-                        <b>Seguridad IA:</b> El sistema requiere tu rostro frente al celular para la validación biométrica. Si tu rostro no coincide con la foto registrada en la base de datos, el acceso será denegado.
+                        <b>Seguridad IA:</b> El sistema requiere tu rostro frente al celular para la validación biométrica. Si tu rostro no coincide con la foto registrada en la base de datos, el acceso será denegado. He leido y acepto los terminos de uso de cámara y tratamiento de mi imagen para el control de asistencia.
                     </p>
-                </div>
-
-                <!-- NUEVO CUADRITO DE COPYRIGHT DEBAJO DEL PANEL DE IA -->
-                <div class="mt-3 p-2 bg-slate-50/80 rounded-lg border border-slate-200 text-center shadow-sm">
-                    <p class="text-[9px] font-bold text-slate-500">🔏Control de Asistencia 2026🖥️</p>
                 </div>
 
             </div>
@@ -221,7 +217,7 @@
                         <div id="empty-logs" class="p-4 text-center text-slate-500 hidden text-xs">No hay registros.</div>
                     </div>
 
-                    <!-- Vista: Gestión de Personal (Con captura de foto y datos de Anexo 3) -->
+                    <!-- Vista: Gestión de Personal -->
                     <div id="rrhh-view-personal" class="hidden p-3 space-y-4">
                         <form id="form-personal" class="flex flex-col gap-2 bg-white p-3 rounded-lg border border-slate-200 shadow-sm" onsubmit="addPersonal(event)">
                             <input type="text" id="new-emp-dni" placeholder="DNI (8 Dígitos)" maxlength="8" required class="px-3 py-2 border border-slate-300 rounded-lg text-xs" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
@@ -258,6 +254,7 @@
                             <div class="flex gap-2">
                                 <input type="number" id="new-sede-radio" placeholder="Radio (m)" value="100" required class="w-1/3 px-3 py-2 border border-slate-300 rounded-lg text-xs">
                                 <button type="submit" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-lg text-xs font-medium transition-colors"><i class="fa-solid fa-plus"></i> Guardar Sede</button>
+                                <button type="button" id="btn-cancel-edit-sede" onclick="cancelEditSede()" class="hidden bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-lg text-xs font-medium transition-colors" title="Cancelar Edición"><i class="fa-solid fa-times"></i></button>
                             </div>
                         </form>
                         <div class="space-y-2" id="sedes-list-mobile"></div>
@@ -289,9 +286,9 @@
         let gpsWatchId = null;
         let cameraStream = null;
         
-        // VARIABLES DE MEMORIA SEGURA PARA EVITAR CONFLICTOS EN CELULARES
         let rrhh_logged = false;
         let securetime_cache = [];
+        let editingSedeId = null; // Variable para gestionar la edición de sedes
 
         // ENLACE DE GOOGLE SHEETS
         const gasUrl = 'https://script.google.com/macros/s/AKfycbxfq_kDo7uIQwJ6oIxAxgDNHRT7t8V9jPiBBVqToYYuI884dXgrZsbKqhGWf_2NtPZsmw/exec'; 
@@ -351,18 +348,14 @@
             }, 200);
 
             try {
-                // 1. CARGAR MODELOS DE INTELIGENCIA ARTIFICIAL (FACE-API)
                 desc.innerText = "Cargando IA Biométrica...";
-                
                 const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights';
-                
                 await Promise.all([
                     faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
                     faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
                     faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
                 ]);
 
-                // 2. OBTENER DATOS DE GOOGLE SHEETS
                 desc.innerText = "Sincronizando Servidor...";
                 const dbData = await DB.run('obtenerDatosIniciales');
                 sedes = dbData.sedes;
@@ -390,7 +383,6 @@
             }
         });
 
-        // Reloj en tiempo real
         function initReloj() {
             const timeEl = document.getElementById('live-time');
             const dateEl = document.getElementById('live-date');
@@ -409,7 +401,6 @@
             });
         }
 
-        // FUNCIÓN MEJORADA: PREVIENE PROBLEMAS DE CSS Y PANTALLAS BLANCAS
         function switchTab(tabId) {
             document.querySelectorAll('section').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('nav button').forEach(el => {
@@ -429,7 +420,7 @@
                     loadLocalLogs(); 
                     renderPersonalTable(); 
                     renderSedesTable();
-                    switchRrhhTab('registros'); // Obliga a cargar la pestaña principal del Dashboard
+                    switchRrhhTab('registros'); 
                 } else {
                     document.getElementById('rrhh-login').classList.remove('hidden');
                     document.getElementById('rrhh-dashboard').classList.add('hidden');
@@ -481,10 +472,6 @@
             }
         }
 
-        /* ==========================================================================
-           3. GEOLOCALIZACIÓN Y GEOFENCING (SEGURIDAD)
-           ========================================================================== */
-
         function startGPS() {
             if (!navigator.geolocation) { updateGPSUI('error', 'GPS no soportado', 'Tu navegador no soporta geolocalización.'); return; }
             gpsWatchId = navigator.geolocation.watchPosition(
@@ -532,10 +519,6 @@
         function enableButtons() { const btn = document.getElementById('btn-marcar'); if(btn) btn.disabled = false; }
         function disableButtons() { const btn = document.getElementById('btn-marcar'); if(btn) btn.disabled = true; }
 
-        /* ==========================================================================
-           4. LÓGICA DE ASISTENCIA Y VERIFICACIÓN FACIAL MATEMÁTICA
-           ========================================================================== */
-
         async function registerAttendance() {
             const empId = document.getElementById('emp-id').value.trim();
             const sedeId = document.getElementById('emp-sede').value;
@@ -562,11 +545,9 @@
                 const video = document.getElementById('camera-stream');
                 if (video.videoWidth === 0) throw new Error("La cámara no está lista. Intenta de nuevo.");
 
-                // 1. EXTRAER EL ROSTRO DE LA CÁMARA EN VIVO
                 const liveDetection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
                 if (!liveDetection) throw new Error("No detecto tu rostro. Mírala fijamente y con buena luz.");
 
-                // 2. COMPARAR CON EL MAPA MATEMÁTICO GUARDADO EN DB
                 const refDescriptorArray = JSON.parse(empleadoData.descriptor);
                 const refDescriptor = new Float32Array(refDescriptorArray);
                 const distance = faceapi.euclideanDistance(refDescriptor, liveDetection.descriptor);
@@ -575,7 +556,6 @@
                     throw new Error("¡ALERTA FRAUDE! Tu rostro no coincide con el DNI ingresado.");
                 }
 
-                // 3. Capturar la foto final aprobada
                 const canvas = document.getElementById('camera-canvas');
                 canvas.width = 320;
                 canvas.height = (video.videoHeight / video.videoWidth) * 320 || 240;
@@ -584,7 +564,6 @@
 
                 btn.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin text-lg"></i><span>Enviando al Servidor...</span>`;
 
-                // 4. GUARDAR EN GOOGLE SHEETS
                 let tipo = 'Entrada';
                 const cache = securetime_cache.filter(l => l.id.includes(empId) && new Date(l.timestamp).toDateString() === new Date().toDateString());
                 if (cache.length > 0 && cache[0].tipo === 'Entrada') tipo = 'Salida';
@@ -610,10 +589,6 @@
                 checkGeofence();
             }
         }
-
-        /* ==========================================================================
-           5. PANEL DE RRHH Y CONFIGURACIONES
-           ========================================================================== */
 
         async function loginRRHH() {
             const pass = document.getElementById('rrhh-password').value;
@@ -690,7 +665,6 @@
             document.getElementById(`rtab-${viewId}`).classList.add('border-red-600', 'text-red-600');
         }
 
-        // ================= GESTIÓN DE PERSONAL (CON EXTRACCIÓN Y ACTUALIZACIÓN BIOMÉTRICA) =================
         function renderPersonalTable() {
             const list = document.getElementById('personal-list-mobile');
             if (personal.length === 0) { list.innerHTML = `<div class="text-xs text-slate-500 text-center py-4">No hay personal.</div>`; return; }
@@ -775,7 +749,6 @@
             }
         }
 
-        // --- LÓGICA PARA ACTUALIZAR FOTO INDIVIDUALMENTE ---
         let currentUpdateDni = null;
 
         function triggerUpdateFoto(dni) {
@@ -829,28 +802,85 @@
                     <div class="bg-white p-2.5 rounded-lg border border-slate-100 flex justify-between items-center shadow-sm">
                         <div class="flex flex-col min-w-0">
                             <span class="text-xs font-bold text-slate-800 truncate">${s.nombre}</span>
-                            <span class="text-[10px] text-slate-500">${s.radio}m de radio</span>
+                            <span class="text-[10px] text-slate-500">${s.lat}, ${s.lng} | Radio: ${s.radio}m</span>
                         </div>
-                        <button onclick="deleteSede('${s.id}')" class="text-red-500 p-1"><i class="fa-regular fa-trash-can text-sm"></i></button>
+                        <div class="flex gap-1">
+                            <button onclick="editSede('${s.id}')" class="text-blue-500 p-1" title="Editar"><i class="fa-solid fa-pen text-sm"></i></button>
+                            <button onclick="deleteSede('${s.id}')" class="text-red-500 p-1" title="Eliminar"><i class="fa-regular fa-trash-can text-sm"></i></button>
+                        </div>
                     </div>`;
             });
         }
 
+        function editSede(id) {
+            const s = sedes.find(x => x.id === id);
+            if(!s) return;
+            
+            document.getElementById('new-sede-nombre').value = s.nombre;
+            document.getElementById('new-sede-lat').value = s.lat;
+            document.getElementById('new-sede-lng').value = s.lng;
+            document.getElementById('new-sede-radio').value = s.radio;
+            
+            editingSedeId = id;
+            
+            const btn = document.querySelector('#form-sede button[type="submit"]');
+            btn.innerHTML = '<i class="fa-solid fa-save"></i> Actualizar Sede';
+            btn.classList.replace('bg-slate-800', 'bg-blue-600');
+            btn.classList.replace('hover:bg-slate-900', 'hover:bg-blue-700');
+            document.getElementById('btn-cancel-edit-sede').classList.remove('hidden');
+            
+            document.getElementById('rrhh-view-sedes').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function cancelEditSede() {
+            editingSedeId = null;
+            document.getElementById('new-sede-nombre').value = '';
+            document.getElementById('new-sede-lat').value = '';
+            document.getElementById('new-sede-lng').value = '';
+            document.getElementById('new-sede-radio').value = '100';
+            
+            const btn = document.querySelector('#form-sede button[type="submit"]');
+            btn.innerHTML = '<i class="fa-solid fa-plus"></i> Guardar Sede';
+            btn.classList.replace('bg-blue-600', 'bg-slate-800');
+            btn.classList.replace('hover:bg-blue-700', 'hover:bg-slate-900');
+            document.getElementById('btn-cancel-edit-sede').classList.add('hidden');
+        }
+
         async function addSede(e) {
             e.preventDefault();
-            const nuevaSede = {
-                id: 'sede_' + Date.now(), nombre: document.getElementById('new-sede-nombre').value.trim(),
-                lat: parseFloat(document.getElementById('new-sede-lat').value), lng: parseFloat(document.getElementById('new-sede-lng').value),
-                radio: parseInt(document.getElementById('new-sede-radio').value) || 100
-            };
-            const btn = e.target.querySelector('button'); btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; btn.disabled = true;
+            const nombre = document.getElementById('new-sede-nombre').value.trim();
+            const lat = parseFloat(document.getElementById('new-sede-lat').value);
+            const lng = parseFloat(document.getElementById('new-sede-lng').value);
+            const radio = parseInt(document.getElementById('new-sede-radio').value) || 100;
+
+            const btn = e.target.querySelector('button[type="submit"]'); 
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; 
+            btn.disabled = true;
 
             try {
-                await DB.run('agregarSede', nuevaSede); sedes.push(nuevaSede);
-                document.getElementById('new-sede-nombre').value = ''; document.getElementById('new-sede-lat').value = ''; document.getElementById('new-sede-lng').value = '';
-                renderSedesTable(); populateSedes(); showToast('Sede guardada', 'success');
-            } catch (err) { showToast('Error al guardar', 'error'); } 
-            finally { btn.innerHTML = '<i class="fa-solid fa-plus"></i> Guardar'; btn.disabled = false; }
+                if (editingSedeId) {
+                    const sedeActualizada = { id: editingSedeId, nombre, lat, lng, radio };
+                    await DB.run('editarSede', sedeActualizada);
+                    const index = sedes.findIndex(s => s.id === editingSedeId);
+                    if(index !== -1) sedes[index] = sedeActualizada;
+                    showToast('Sede actualizada', 'success');
+                } else {
+                    const nuevaSede = { id: 'sede_' + Date.now(), nombre, lat, lng, radio };
+                    await DB.run('agregarSede', nuevaSede); 
+                    sedes.push(nuevaSede);
+                    showToast('Sede guardada', 'success');
+                }
+                
+                cancelEditSede();
+                renderSedesTable(); 
+                populateSedes(); 
+            } catch (err) { 
+                showToast('Error al guardar', 'error'); 
+                btn.innerHTML = originalText;
+            } finally { 
+                btn.disabled = false; 
+            }
         }
 
         async function deleteSede(id) {
