@@ -12,7 +12,7 @@
     <link rel="shortcut icon" href="https://lh3.googleusercontent.com/d/1tSpUZqyG9UQzsDB96OMA1jzPuvhTmO_V" type="image/png">
     <link rel="apple-touch-icon" href="https://lh3.googleusercontent.com/d/1tSpUZqyG9UQzsDB96OMA1jzPuvhTmO_V">
     
-    <title>Biometrico_RDR UGEL SBBA</title>
+    <title>Sistema de Asistencia - UGEL SBBA</title>
     
     <!-- Tailwind & Iconos -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -95,15 +95,20 @@
         </div>
     </nav>
 
+    <!-- BANNER MODO OFFLINE DINÁMICO -->
+    <div id="offline-banner" class="hidden fixed top-16 left-0 w-full bg-orange-500 text-white text-center py-1.5 text-[10px] font-bold z-40 shadow-md transition-colors duration-500">
+        <i class="fa-solid fa-wifi-slash mr-1"></i> MODO OFFLINE - Registros se guardan en el celular
+    </div>
+
     <!-- Main Content -->
     <main class="w-full h-full pt-16 pb-10 flex flex-col items-center justify-center px-4 mx-auto max-w-md">
         
         <!-- ================= VISTA: EMPLEADO ================= -->
-        <section id="view-empleado" class="w-full flex flex-col justify-center animate-fade-in">
+        <section id="view-empleado" class="w-full flex flex-col justify-center animate-fade-in mt-4">
             <div class="glass-card rounded-2xl p-4 shadow-sm">
                 
                 <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center mb-3 shadow-inner">
-                    <h2 class="text-sm font-bold text-red-700 tracking-widest mb-1">CONTROL DE ASISTENCIA</h2>
+                    <h2 class="text-sm font-bold text-blue-900 tracking-widest mb-1">CONTROL DE ASISTENCIA</h2>
                     <div id="live-time" class="text-3xl font-bold text-slate-700 tracking-wider font-mono">00:00:00</div>
                     <div id="live-date" class="text-xs text-slate-500 mt-0.5 font-medium">Cargando fecha...</div>
                 </div>
@@ -156,7 +161,6 @@
                         </div>
                     </div>
 
-                    <!-- NUEVO: Checkbox de Términos y Condiciones -->
                     <div class="flex items-center gap-2 pt-1 px-1">
                         <input type="checkbox" id="chk-terminos" onchange="checkGeofence()" class="w-5 h-5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer shadow-sm">
                         <label for="chk-terminos" class="text-xs text-slate-700 font-medium cursor-pointer">
@@ -175,8 +179,12 @@
                 <div class="mt-3 p-3 bg-blue-50/50 rounded-lg border border-blue-100">
                     <p class="text-[9px] leading-tight text-slate-500 text-justify">
                         <i class="fa-solid fa-user-lock text-blue-500 mr-1"></i>
-                        <b>Seguridad IA:</b> El sistema requiere tu rostro frente al celular para la validación biométrica. Si tu rostro no coincide con la foto registrada en la base de datos, el acceso será denegado.
+                        <b>Seguridad IA:</b> El sistema requiere tu rostro frente al celular para la validación biométrica. Si tu rostro no coincide con la foto registrada en la base de datos, el acceso será denegado. He leido y acepto los terminos de uso de cámara y tratamiento de mi imagen para el control de asistencia.
                     </p>
+                </div>
+
+                <div class="mt-3 p-2 bg-slate-50/80 rounded-lg border border-slate-200 text-center shadow-sm">
+                    <p class="text-[9px] font-bold text-slate-500">© Copyright Versión 1.0.0 - UGEL Surcubamba</p>
                 </div>
 
             </div>
@@ -232,7 +240,6 @@
                             <input type="text" id="new-emp-dni" placeholder="DNI (8 Dígitos)" maxlength="8" required class="px-3 py-2 border border-slate-300 rounded-lg text-xs" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                             <input type="text" id="new-emp-nombre" placeholder="Nombre Completo" required class="px-3 py-2 border border-slate-300 rounded-lg text-xs">
                             
-                            <!-- CAMPOS INSTITUCIONALES -->
                             <div class="flex gap-2">
                                 <input type="text" id="new-emp-cargo" placeholder="Cargo (Ej. Docente)" required class="w-1/3 px-3 py-2 border border-slate-300 rounded-lg text-xs">
                                 <input type="text" id="new-emp-condicion" placeholder="Condición (Ej. Nombrado)" required class="w-1/3 px-3 py-2 border border-slate-300 rounded-lg text-xs">
@@ -246,9 +253,7 @@
                             <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-lg text-xs font-medium mt-1 transition-colors"><i class="fa-solid fa-plus"></i> Guardar Empleado y Biometría</button>
                         </form>
                         
-                        <!-- BOTÓN OCULTO PARA ACTUALIZAR LA FOTO INDIVIDUALMENTE -->
                         <input type="file" id="update-emp-foto" accept="image/*" capture="user" class="hidden" onchange="processUpdateFoto(event)">
-                        
                         <div class="space-y-2" id="personal-list-mobile"></div>
                     </div>
 
@@ -308,7 +313,7 @@
 
     <script>
         /* ==========================================================================
-           1. CONFIGURACIÓN Y ESTADO GLOBAL
+           1. CONFIGURACIÓN Y ESTADO GLOBAL (AHORA CON SINCRONIZACIÓN AUTOMÁTICA)
            ========================================================================== */
         
         let sedes = [];
@@ -321,6 +326,10 @@
         let rrhh_logged = false;
         let securetime_cache = [];
         let editingSedeId = null; 
+        
+        // Cola de datos guardados localmente cuando no hay internet
+        let offlineQueue = JSON.parse(localStorage.getItem('asistencia_offline_queue') || '[]');
+        let isSyncing = false; // Bandera para evitar cruces en la sincronización
 
         // ENLACE DE GOOGLE SHEETS
         const gasUrl = 'https://script.google.com/macros/s/AKfycbxfq_kDo7uIQwJ6oIxAxgDNHRT7t8V9jPiBBVqToYYuI884dXgrZsbKqhGWf_2NtPZsmw/exec'; 
@@ -352,9 +361,36 @@
         };
 
         /* ==========================================================================
-           2. INICIALIZACIÓN DE LA UI E INTELIGENCIA ARTIFICIAL
+           2. INICIALIZACIÓN DE LA UI, IA Y CONTROL DE RED
            ========================================================================== */
         
+        // Listeners para detectar conexión y desconexión en tiempo real
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+
+        // MOTOR INVISIBLE: Revisa la conexión cada 15 segundos por si acaso el navegador no avisó
+        setInterval(() => {
+            if (navigator.onLine && offlineQueue.length > 0) {
+                syncOfflineData();
+            }
+        }, 15000);
+
+        function updateOnlineStatus() {
+            const banner = document.getElementById('offline-banner');
+            if(!navigator.onLine) {
+                banner.classList.remove('hidden');
+                banner.classList.replace('bg-blue-500', 'bg-orange-500');
+                banner.innerHTML = `<i class="fa-solid fa-wifi-slash mr-1"></i> MODO OFFLINE - Los registros se guardarán en el celular`;
+            } else if (offlineQueue.length > 0) {
+                banner.classList.remove('hidden');
+                banner.classList.replace('bg-orange-500', 'bg-blue-500');
+                banner.innerHTML = `<i class="fa-solid fa-cloud-arrow-up mr-1 animate-pulse"></i> HAY CONEXIÓN - Enviando ${offlineQueue.length} registros...`;
+                syncOfflineData(); 
+            } else {
+                banner.classList.add('hidden');
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
             const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
             if (!isMobile) {
@@ -364,6 +400,7 @@
                 return;
             }
 
+            updateOnlineStatus();
             initReloj();
             
             let progress = 0;
@@ -379,6 +416,7 @@
                 }
             }, 200);
 
+            // 1. CARGAMOS LA IA (Normalmente se cachea en el celular para uso offline)
             try {
                 desc.innerText = "Cargando IA Biométrica...";
                 const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights';
@@ -387,33 +425,56 @@
                     faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
                     faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
                 ]);
+            } catch(e) {
+                console.warn("Fallo carga de modelos. Posible modo offline puro.", e);
+            }
 
+            // 2. CARGAMOS LOS DATOS Y CONFIGURAMOS EL ENTORNO
+            try {
                 desc.innerText = "Sincronizando Servidor...";
                 const dbData = await DB.run('obtenerDatosIniciales');
                 sedes = dbData.sedes;
                 personal = dbData.personal;
                 
-                populateSedes();
-                startGPS();
-                startCamera();
-                
-                clearInterval(progressInterval);
-                bar.style.width = '100%'; text.innerText = '100%';
-                setTimeout(() => {
-                    document.getElementById('global-loader').style.opacity = '0';
-                    setTimeout(() => document.getElementById('global-loader').classList.add('hidden'), 500);
-                }, 600);
+                // Base maestra para trabajar offline
+                localStorage.setItem('offline_master_db', JSON.stringify({sedes: sedes, personal: personal}));
+                arrancarSistemaExitoso(progressInterval, bar, text);
 
             } catch (error) {
-                clearInterval(progressInterval);
-                document.getElementById('global-loader').innerHTML = `
-                    <i class="fa-solid fa-triangle-exclamation text-red-600 text-6xl mb-4"></i>
-                    <h2 class="text-2xl font-bold text-slate-800">Error Crítico</h2>
-                    <p class="text-sm text-slate-600 mt-2 text-center px-4 max-w-sm">${error.message}</p>
-                    <button onclick="location.reload()" class="mt-6 px-6 py-3 bg-blue-700 font-bold text-white rounded-full text-sm shadow-lg">Reintentar</button>
-                `;
+                // RESCATE OFFLINE DEFINITIVO
+                if (localStorage.getItem('offline_master_db')) {
+                    const localData = JSON.parse(localStorage.getItem('offline_master_db'));
+                    sedes = localData.sedes;
+                    personal = localData.personal;
+                    
+                    arrancarSistemaExitoso(progressInterval, bar, text);
+                    showToast('Iniciando en Modo Sin Conexión', 'warning');
+                } else {
+                    clearInterval(progressInterval);
+                    document.getElementById('global-loader').innerHTML = `
+                        <i class="fa-solid fa-triangle-exclamation text-red-600 text-6xl mb-4"></i>
+                        <h2 class="text-2xl font-bold text-slate-800">Error Crítico</h2>
+                        <p class="text-sm text-slate-600 mt-2 text-center px-4 max-w-sm">${error.message}</p>
+                        <p class="text-xs text-slate-500 mt-2 text-center px-4">Si estás sin internet, necesitas haber ingresado una vez con conexión para guardar los datos de tu sede en la memoria del celular.</p>
+                        <button onclick="location.reload()" class="mt-6 px-6 py-3 bg-blue-700 font-bold text-white rounded-full text-sm shadow-lg">Reintentar</button>
+                    `;
+                }
             }
         });
+
+        function arrancarSistemaExitoso(progressInterval, bar, text) {
+            populateSedes();
+            startGPS();
+            startCamera();
+            
+            clearInterval(progressInterval);
+            bar.style.width = '100%'; text.innerText = '100%';
+            setTimeout(() => {
+                document.getElementById('global-loader').style.opacity = '0';
+                setTimeout(() => document.getElementById('global-loader').classList.add('hidden'), 500);
+            }, 600);
+            updateOnlineStatus();
+        }
 
         function initReloj() {
             const timeEl = document.getElementById('live-time');
@@ -445,11 +506,16 @@
             const btn = document.getElementById(`tab-${tabId}`);
             btn.classList.remove('text-slate-500'); btn.classList.add('text-red-600', 'bg-red-50');
 
+            if(tabId === 'empleado') {
+                startGPS();
+                startCamera();
+            }
+
             if(tabId === 'rrhh') {
                 if(rrhh_logged) {
                     document.getElementById('rrhh-login').classList.add('hidden');
                     document.getElementById('rrhh-dashboard').classList.remove('hidden');
-                    loadLocalLogs(); 
+                    if(navigator.onLine) loadLocalLogs(); 
                     renderPersonalTable(); 
                     renderSedesTable();
                     switchRrhhTab('registros'); 
@@ -480,6 +546,7 @@
         }
 
         async function startCamera() {
+            if (cameraStream) return; 
             try {
                 cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
                 const videoEl = document.getElementById('camera-stream');
@@ -500,20 +567,35 @@
                 document.getElementById('cam-icon').classList.replace('text-slate-400', 'text-red-600');
                 document.getElementById('cam-icon').classList.replace('fa-camera', 'fa-eye-slash');
                 document.getElementById('cam-title').textContent = "Cámara Bloqueada";
-                document.getElementById('cam-desc').textContent = "La asistencia requiere cámara para la validación de identidad.";
+                document.getElementById('cam-desc').textContent = "Debes dar permiso a la cámara para la validación de identidad.";
             }
         }
 
         function startGPS() {
             if (!navigator.geolocation) { updateGPSUI('error', 'GPS no soportado', 'Tu navegador no soporta geolocalización.'); return; }
+            
+            if(gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
+
             gpsWatchId = navigator.geolocation.watchPosition(
                 (position) => {
+                    // ADAPTACIÓN RURAL OFFLINE: El GPS sin internet tarda más. 
+                    // Tolerancia ampliada a 1000m para que no se bloquee, el Geofence hará el resto del trabajo.
+                    if (position.coords.accuracy > 1000) {
+                        updateGPSUI('warning', 'Calibrando GPS Real...', `Buscando satélites (Precisión baja: ${Math.round(position.coords.accuracy)}m). Sal a cielo abierto.`);
+                        disableButtons();
+                        return; 
+                    }
+
                     currentLocation = { lat: position.coords.latitude, lng: position.coords.longitude, accuracy: position.coords.accuracy };
                     if(document.getElementById('emp-sede').value) checkGeofence();
                     else updateGPSUI('success', 'Ubicación obtenida', `Precisión: ${Math.round(position.coords.accuracy)}m.`);
                 },
-                (error) => { updateGPSUI('error', 'Error GPS', 'Activa el GPS para marcar.'); disableButtons(); },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                (error) => { 
+                    updateGPSUI('error', 'Error GPS', 'Activa tu GPS (Ubicación) y dale permiso al navegador.'); 
+                    disableButtons(); 
+                },
+                // timeout aumentado a 20s y maximumAge a 10s para darle respiro al chip GPS sin internet
+                { enableHighAccuracy: true, timeout: 20000, maximumAge: 10000 }
             );
         }
 
@@ -548,7 +630,6 @@
             else { icon.classList.add('fa-location-crosshairs', 'text-slate-400', 'animate-spin'); }
         }
 
-        // Modificadas las funciones enable/disable para incluir la validación de la casilla de Términos
         function enableButtons() { 
             const btn = document.getElementById('btn-marcar'); 
             const chk = document.getElementById('chk-terminos');
@@ -560,7 +641,6 @@
             if(btn) btn.disabled = true; 
         }
 
-        // Funciones para el Modal de Términos y Condiciones
         function openTerminos(e) {
             if(e) e.preventDefault();
             const modal = document.getElementById('modal-terminos');
@@ -578,24 +658,15 @@
             const modal = document.getElementById('modal-terminos');
             const content = document.getElementById('modal-terminos-content');
             const chk = document.getElementById('chk-terminos');
-            
-            // Si el usuario da a "Entendido", marcamos la casilla automáticamente para su comodidad.
-            if(chk) {
-                chk.checked = true;
-                checkGeofence(); // Re-evalúa para habilitar el botón si cumple las demás condiciones
-            }
-
+            if(chk) { chk.checked = true; checkGeofence(); }
             modal.classList.add('opacity-0');
             content.classList.remove('scale-100');
             content.classList.add('scale-95');
-            setTimeout(() => {
-                modal.classList.add('hidden');
-                modal.style.display = 'none';
-            }, 300);
+            setTimeout(() => { modal.classList.add('hidden'); modal.style.display = 'none'; }, 300);
         }
 
         /* ==========================================================================
-           4. LÓGICA DE ASISTENCIA Y VERIFICACIÓN FACIAL MATEMÁTICA
+           4. LÓGICA DE ASISTENCIA Y VERIFICACIÓN FACIAL MATEMÁTICA CON COLA OFFLINE
            ========================================================================== */
 
         async function registerAttendance() {
@@ -617,6 +688,8 @@
             disableButtons();
 
             let fotoBase64 = "";
+            let payload = null;
+            let tipo = 'Entrada';
 
             try {
                 if (!cameraStream) throw new Error("Cámara denegada. Es obligatoria para biometría.");
@@ -641,17 +714,35 @@
                 canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
                 fotoBase64 = canvas.toDataURL('image/jpeg', 0.6); 
 
-                btn.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin text-lg"></i><span>Enviando al Servidor...</span>`;
-
-                let tipo = 'Entrada';
                 const cache = securetime_cache.filter(l => l.id.includes(empId) && new Date(l.timestamp).toDateString() === new Date().toDateString());
                 if (cache.length > 0 && cache[0].tipo === 'Entrada') tipo = 'Salida';
 
-                const payload = {
+                payload = {
                     id: `${empleadoData.nombre} (${empId})`, sede: sedes.find(s => s.id === sedeId).nombre,
                     tipo: tipo, lat: currentLocation.lat, lng: currentLocation.lng,
                     distancia: Math.round(distanceToSede), dispositivo: navigator.userAgent, foto: fotoBase64
                 };
+
+                // FUNCIÓN INTERNA PARA GUARDAR OFFLINE
+                const saveOffline = () => {
+                    offlineQueue.push(payload);
+                    localStorage.setItem('asistencia_offline_queue', JSON.stringify(offlineQueue));
+                    showToast(`¡Guardado en el celular! ${tipo} se enviará al tener internet.`, 'warning');
+                    securetime_cache.unshift({...payload, timestamp: new Date().toISOString()});
+                    
+                    document.getElementById('emp-id').value = '';
+                    document.getElementById('emp-name-display').classList.add('hidden');
+                    document.getElementById('chk-terminos').checked = false;
+                    updateOnlineStatus();
+                };
+
+                // SI ESTÁ DESCONECTADO (MODO AVIÓN O SIN RED), GUARDA DE INMEDIATO EN EL CELULAR
+                if (!navigator.onLine) {
+                    saveOffline();
+                    return;
+                }
+
+                btn.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin text-lg"></i><span>Enviando al Servidor...</span>`;
 
                 const res = await DB.run('guardarAsistencia', payload);
                 if (res && res.success) {
@@ -659,15 +750,59 @@
                     securetime_cache.unshift({...payload, timestamp: res.timestamp});
                     document.getElementById('emp-id').value = '';
                     document.getElementById('emp-name-display').classList.add('hidden');
-                    document.getElementById('chk-terminos').checked = false; // Desmarcamos tras enviar
+                    document.getElementById('chk-terminos').checked = false;
                 }
 
             } catch (error) {
-                showToast(error.message, 'error');
+                // CAPTURA FALSOS POSITIVOS: Si hay "internet" pero la señal es malísima y da error
+                if (payload && (error.message.includes('Sin conexión') || error.message.includes('Failed to fetch') || error.message.includes('NetworkError'))) {
+                    offlineQueue.push(payload);
+                    localStorage.setItem('asistencia_offline_queue', JSON.stringify(offlineQueue));
+                    
+                    showToast(`Conexión débil. ¡Guardado en el celular! Se enviará al estabilizar la red.`, 'warning');
+                    securetime_cache.unshift({...payload, timestamp: new Date().toISOString()});
+                    
+                    document.getElementById('emp-id').value = '';
+                    document.getElementById('emp-name-display').classList.add('hidden');
+                    document.getElementById('chk-terminos').checked = false;
+                    updateOnlineStatus();
+                } else {
+                    showToast(error.message, 'error');
+                }
             } finally {
                 btn.innerHTML = originalHtml;
-                checkGeofence(); // Reevalúa si puede activar el botón de nuevo
+                checkGeofence();
             }
+        }
+
+        /* LÓGICA AUTOMÁTICA PARA SINCRONIZAR LOS DATOS PENDIENTES AL VOLVER EL INTERNET */
+        async function syncOfflineData() {
+            if (offlineQueue.length === 0 || !navigator.onLine || isSyncing) return;
+            isSyncing = true;
+            
+            showToast(`Enviando ${offlineQueue.length} registros pendientes en segundo plano...`, 'info');
+            
+            let failedQueue = [];
+            let syncCount = 0;
+
+            for (let data of offlineQueue) {
+                try {
+                    await DB.run('guardarAsistencia', data);
+                    syncCount++;
+                } catch (e) {
+                    failedQueue.push(data); // Si falla uno en particular, lo guardamos para reintentar luego
+                }
+            }
+            
+            offlineQueue = failedQueue;
+            localStorage.setItem('asistencia_offline_queue', JSON.stringify(offlineQueue));
+            
+            if (offlineQueue.length === 0 && syncCount > 0) {
+                showToast('¡Todos los registros pendientes fueron sincronizados a la UGEL!', 'success');
+            }
+            
+            isSyncing = false;
+            updateOnlineStatus(); // Actualizamos la interfaz
         }
 
         /* ==========================================================================
@@ -677,6 +812,12 @@
         async function loginRRHH() {
             const pass = document.getElementById('rrhh-password').value;
             const btn = document.getElementById('btn-login-rrhh');
+            
+            if(!navigator.onLine) {
+                showToast('El panel requiere internet para funcionar.', 'error');
+                return;
+            }
+
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verificando...'; btn.disabled = true;
 
             try {
@@ -816,6 +957,9 @@
                 document.getElementById('new-emp-cargo').value = ''; document.getElementById('new-emp-condicion').value = ''; document.getElementById('new-emp-jorlab').value = ''; 
                 fileInput.value = '';
                 renderPersonalTable(); showToast('Empleado y Rostro Guardados', 'success');
+                
+                // Actualizamos el cache local
+                localStorage.setItem('offline_master_db', JSON.stringify({sedes: sedes, personal: personal}));
             } catch (err) { 
                 showToast('Error: ' + err.message, 'error'); 
             } finally { 
@@ -829,6 +973,7 @@
                     await DB.run('eliminarPersonal', dni);
                     personal = personal.filter(p => p.dni !== dni);
                     renderPersonalTable(); showToast('Eliminado', 'success');
+                    localStorage.setItem('offline_master_db', JSON.stringify({sedes: sedes, personal: personal}));
                 } catch(err) { showToast('Error al eliminar', 'error'); }
             }
         }
@@ -870,6 +1015,7 @@
                 if (empIndex !== -1) personal[empIndex].descriptor = descriptorStr;
                 
                 showToast('Foto y Biometría Actualizadas', 'success');
+                localStorage.setItem('offline_master_db', JSON.stringify({sedes: sedes, personal: personal}));
             } catch (err) { 
                 showToast('Error: ' + err.message, 'error'); 
             } finally { 
@@ -958,6 +1104,7 @@
                 cancelEditSede();
                 renderSedesTable(); 
                 populateSedes(); 
+                localStorage.setItem('offline_master_db', JSON.stringify({sedes: sedes, personal: personal}));
             } catch (err) { 
                 showToast('Error al guardar', 'error'); 
                 btn.innerHTML = originalText;
@@ -972,6 +1119,7 @@
                 try {
                     await DB.run('eliminarSede', id); sedes = sedes.filter(s => s.id !== id);
                     renderSedesTable(); populateSedes(); showToast('Eliminada', 'success');
+                    localStorage.setItem('offline_master_db', JSON.stringify({sedes: sedes, personal: personal}));
                 } catch (err) { showToast('Error al eliminar', 'error'); }
             }
         }
