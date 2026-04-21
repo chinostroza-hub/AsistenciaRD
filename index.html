@@ -100,6 +100,11 @@
         <i class="fa-solid fa-wifi-slash mr-1"></i> MODO OFFLINE - Registros se guardan en el celular
     </div>
 
+    <!-- Botón Instalador Flotante (Se muestra automáticamente si no está instalada) -->
+    <button id="btn-install-app" onclick="installApp()" class="hidden fixed bottom-16 right-4 z-50 bg-blue-800 hover:bg-blue-900 text-white px-4 py-3 rounded-full shadow-2xl font-bold text-xs flex items-center gap-2 animate-bounce border-2 border-white">
+        <i class="fa-solid fa-download"></i> Instalar App en Celular
+    </button>
+
     <!-- Main Content -->
     <main class="w-full h-full pt-16 pb-10 flex flex-col items-center justify-center px-4 mx-auto max-w-md">
         
@@ -313,7 +318,63 @@
 
     <script>
         /* ==========================================================================
-           1. CONFIGURACIÓN Y ESTADO GLOBAL (AHORA CON SINCRONIZACIÓN AUTOMÁTICA)
+           0. CONVERTIR WEB A APLICACIÓN NATIVA PWA (EVITA BLOQUEO DE RECARGA)
+           ========================================================================== */
+        
+        // 0.1 Generar archivo de Instalación (Manifest) en memoria
+        const manifest = {
+            name: "Asistencia UGEL SBBA", short_name: "Asistencia", start_url: location.href.split('?')[0], display: "standalone",
+            background_color: "#f0f4f8", theme_color: "#1e3a8a",
+            icons: [{ src: "https://lh3.googleusercontent.com/d/1tSpUZqyG9UQzsDB96OMA1jzPuvhTmO_V", sizes: "192x192", type: "image/png" }]
+        };
+        const link = document.createElement('link'); link.rel = 'manifest';
+        link.href = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
+        document.head.appendChild(link);
+
+        // 0.2 Generar Service Worker fantasma para engañar al navegador y permitir instalación
+        if ('serviceWorker' in navigator) {
+            const sw = "self.addEventListener('fetch', function(e) { });";
+            const blob = new Blob([sw], {type: 'application/javascript'});
+            navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+        }
+
+        // 0.3 Lógica para mostrar el botón de "Instalar App"
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('btn-install-app').classList.remove('hidden');
+        });
+
+        function installApp() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') document.getElementById('btn-install-app').classList.add('hidden');
+                    deferredPrompt = null;
+                });
+            }
+        }
+
+        // 0.4 CACHÉ AGRESIVO: Guarda la Inteligencia artificial para que no explote si se recarga sin internet
+        const origFetch = window.fetch;
+        window.fetch = async function(resource, config) {
+            const url = typeof resource === 'string' ? resource : resource.url;
+            if (url && url.includes('weights/')) {
+                const cache = await caches.open('ugel-biometria-v3');
+                const cached = await cache.match(url);
+                if (cached) return cached; // Devuelve IA al instante si ya está guardada
+                try {
+                    const res = await origFetch(resource, config);
+                    if (res.ok) cache.put(url, res.clone());
+                    return res;
+                } catch(e) { throw e; }
+            }
+            return origFetch(resource, config);
+        };
+
+        /* ==========================================================================
+           1. CONFIGURACIÓN Y ESTADO GLOBAL
            ========================================================================== */
         
         let sedes = [];
@@ -329,12 +390,11 @@
         
         // Cola de datos guardados localmente cuando no hay internet
         let offlineQueue = JSON.parse(localStorage.getItem('asistencia_offline_queue') || '[]');
-        let isSyncing = false; // Bandera para evitar cruces en la sincronización
+        let isSyncing = false; 
 
         // ENLACE DE GOOGLE SHEETS
         const gasUrl = 'https://script.google.com/macros/s/AKfycbxfq_kDo7uIQwJ6oIxAxgDNHRT7t8V9jPiBBVqToYYuI884dXgrZsbKqhGWf_2NtPZsmw/exec'; 
 
-        // Base de Datos
         const DB = {
             run: async function(method, ...args) {
                 if (typeof google !== 'undefined' && google.script && google.script.run) {
@@ -364,15 +424,12 @@
            2. INICIALIZACIÓN DE LA UI, IA Y CONTROL DE RED
            ========================================================================== */
         
-        // Listeners para detectar conexión y desconexión en tiempo real
         window.addEventListener('online', updateOnlineStatus);
         window.addEventListener('offline', updateOnlineStatus);
 
-        // MOTOR INVISIBLE: Revisa la conexión cada 15 segundos por si acaso el navegador no avisó
+        // MOTOR INVISIBLE: Revisa la conexión cada 15 segundos y sincroniza
         setInterval(() => {
-            if (navigator.onLine && offlineQueue.length > 0) {
-                syncOfflineData();
-            }
+            if (navigator.onLine && offlineQueue.length > 0) syncOfflineData();
         }, 15000);
 
         function updateOnlineStatus() {
@@ -416,7 +473,6 @@
                 }
             }, 200);
 
-            // 1. CARGAMOS LA IA (Normalmente se cachea en el celular para uso offline)
             try {
                 desc.innerText = "Cargando IA Biométrica...";
                 const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights';
@@ -426,27 +482,24 @@
                     faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
                 ]);
             } catch(e) {
-                console.warn("Fallo carga de modelos. Posible modo offline puro.", e);
+                console.warn("Fallo carga de modelos web. Usando caché offline si existe.");
             }
 
-            // 2. CARGAMOS LOS DATOS Y CONFIGURAMOS EL ENTORNO
             try {
                 desc.innerText = "Sincronizando Servidor...";
                 const dbData = await DB.run('obtenerDatosIniciales');
                 sedes = dbData.sedes;
                 personal = dbData.personal;
                 
-                // Base maestra para trabajar offline
                 localStorage.setItem('offline_master_db', JSON.stringify({sedes: sedes, personal: personal}));
                 arrancarSistemaExitoso(progressInterval, bar, text);
 
             } catch (error) {
-                // RESCATE OFFLINE DEFINITIVO
+                // RESCATE MODO OFFLINE EXTREMO
                 if (localStorage.getItem('offline_master_db')) {
                     const localData = JSON.parse(localStorage.getItem('offline_master_db'));
                     sedes = localData.sedes;
                     personal = localData.personal;
-                    
                     arrancarSistemaExitoso(progressInterval, bar, text);
                     showToast('Iniciando en Modo Sin Conexión', 'warning');
                 } else {
@@ -455,7 +508,7 @@
                         <i class="fa-solid fa-triangle-exclamation text-red-600 text-6xl mb-4"></i>
                         <h2 class="text-2xl font-bold text-slate-800">Error Crítico</h2>
                         <p class="text-sm text-slate-600 mt-2 text-center px-4 max-w-sm">${error.message}</p>
-                        <p class="text-xs text-slate-500 mt-2 text-center px-4">Si estás sin internet, necesitas haber ingresado una vez con conexión para guardar los datos de tu sede en la memoria del celular.</p>
+                        <p class="text-xs text-slate-500 mt-2 text-center px-4 font-bold text-red-700">Debes ingresar por primera vez con internet para descargar el sistema a tu celular.</p>
                         <button onclick="location.reload()" class="mt-6 px-6 py-3 bg-blue-700 font-bold text-white rounded-full text-sm shadow-lg">Reintentar</button>
                     `;
                 }
@@ -578,8 +631,6 @@
 
             gpsWatchId = navigator.geolocation.watchPosition(
                 (position) => {
-                    // ADAPTACIÓN RURAL OFFLINE: El GPS sin internet tarda más. 
-                    // Tolerancia ampliada a 1000m para que no se bloquee, el Geofence hará el resto del trabajo.
                     if (position.coords.accuracy > 1000) {
                         updateGPSUI('warning', 'Calibrando GPS Real...', `Buscando satélites (Precisión baja: ${Math.round(position.coords.accuracy)}m). Sal a cielo abierto.`);
                         disableButtons();
@@ -594,7 +645,6 @@
                     updateGPSUI('error', 'Error GPS', 'Activa tu GPS (Ubicación) y dale permiso al navegador.'); 
                     disableButtons(); 
                 },
-                // timeout aumentado a 20s y maximumAge a 10s para darle respiro al chip GPS sin internet
                 { enableHighAccuracy: true, timeout: 20000, maximumAge: 10000 }
             );
         }
@@ -723,7 +773,6 @@
                     distancia: Math.round(distanceToSede), dispositivo: navigator.userAgent, foto: fotoBase64
                 };
 
-                // FUNCIÓN INTERNA PARA GUARDAR OFFLINE
                 const saveOffline = () => {
                     offlineQueue.push(payload);
                     localStorage.setItem('asistencia_offline_queue', JSON.stringify(offlineQueue));
@@ -754,7 +803,7 @@
                 }
 
             } catch (error) {
-                // CAPTURA FALSOS POSITIVOS: Si hay "internet" pero la señal es malísima y da error
+                // CAPTURA FALSOS POSITIVOS DE INTERNET (MALA SEÑAL RURAL)
                 if (payload && (error.message.includes('Sin conexión') || error.message.includes('Failed to fetch') || error.message.includes('NetworkError'))) {
                     offlineQueue.push(payload);
                     localStorage.setItem('asistencia_offline_queue', JSON.stringify(offlineQueue));
@@ -780,7 +829,7 @@
             if (offlineQueue.length === 0 || !navigator.onLine || isSyncing) return;
             isSyncing = true;
             
-            showToast(`Enviando ${offlineQueue.length} registros pendientes en segundo plano...`, 'info');
+            showToast(`Enviando ${offlineQueue.length} registros pendientes...`, 'info');
             
             let failedQueue = [];
             let syncCount = 0;
@@ -802,7 +851,7 @@
             }
             
             isSyncing = false;
-            updateOnlineStatus(); // Actualizamos la interfaz
+            updateOnlineStatus(); 
         }
 
         /* ==========================================================================
@@ -958,7 +1007,6 @@
                 fileInput.value = '';
                 renderPersonalTable(); showToast('Empleado y Rostro Guardados', 'success');
                 
-                // Actualizamos el cache local
                 localStorage.setItem('offline_master_db', JSON.stringify({sedes: sedes, personal: personal}));
             } catch (err) { 
                 showToast('Error: ' + err.message, 'error'); 
