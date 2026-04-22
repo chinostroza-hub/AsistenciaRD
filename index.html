@@ -318,46 +318,51 @@
 
     <script>
         /* ==========================================================================
-           0. CONVERTIR WEB A APLICACIÓN NATIVA PWA (EVITA BLOQUEO DE RECARGA/REINICIO)
+           0. CONVERTIR WEB A APLICACIÓN NATIVA PWA (PROTECCIÓN DE ERRORES)
            ========================================================================== */
         
-        // 0.1 Generar archivo de Instalación (Manifest) en memoria
-        const manifest = {
-            name: "Asistencia UGEL SBBA", short_name: "Asistencia", start_url: location.href.split('?')[0], display: "standalone",
-            background_color: "#f0f4f8", theme_color: "#1e3a8a",
-            icons: [{ src: "https://lh3.googleusercontent.com/d/1tSpUZqyG9UQzsDB96OMA1jzPuvhTmO_V", sizes: "192x192", type: "image/png" }]
-        };
-        const link = document.createElement('link'); link.rel = 'manifest';
-        link.href = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
-        document.head.appendChild(link);
+        // 0.1 Generar archivo de Instalación (Manifest) de forma segura
+        try {
+            const manifest = {
+                name: "Asistencia UGEL SBBA", short_name: "Asistencia", start_url: location.href.split('?')[0], display: "standalone",
+                background_color: "#f0f4f8", theme_color: "#1e3a8a",
+                icons: [{ src: "https://lh3.googleusercontent.com/d/1tSpUZqyG9UQzsDB96OMA1jzPuvhTmO_V", sizes: "192x192", type: "image/png" }]
+            };
+            const link = document.createElement('link'); link.rel = 'manifest';
+            link.href = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
+            document.head.appendChild(link);
+        } catch(e) { console.warn('PWA Manifest bloqueado por el navegador.', e); }
 
-        // 0.2 Generar Service Worker de Alta Persistencia (Permite arranque tras reiniciar celular)
-        if ('serviceWorker' in navigator) {
-            const currentUrl = location.href.split('?')[0];
-            const swCode = `
-                const CACHE_NAME = 'ugel-asistencia-v2.0.0';
-                self.addEventListener('install', e => {
-                    e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll([ '${currentUrl}' ])));
-                    self.skipWaiting();
-                });
-                self.addEventListener('activate', e => {
-                    e.waitUntil(caches.keys().then(keys => Promise.all(
-                        keys.map(k => { if(k !== CACHE_NAME) return caches.delete(k); })
-                    )));
-                    e.waitUntil(self.clients.claim());
-                });
-                self.addEventListener('fetch', e => {
-                    e.respondWith(
-                        fetch(e.request).catch(() => caches.match(e.request, {ignoreSearch:true}).then(res => res || caches.match('${currentUrl}')))
-                    );
-                });
-            `;
-            const blob = new Blob([swCode], {type: 'application/javascript'});
-            navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
-            
-            // Respaldo de caché de la página actual para asegurar el arranque sin internet
-            caches.open('ugel-asistencia-v2.0.0').then(cache => cache.add(currentUrl)).catch(()=>{});
-        }
+        // 0.2 Generar Service Worker de Alta Persistencia ENVUELTO EN TRY-CATCH
+        try {
+            if ('serviceWorker' in navigator) {
+                const currentUrl = location.href.split('?')[0];
+                const swCode = `
+                    const CACHE_NAME = 'ugel-asistencia-v2.0.0';
+                    self.addEventListener('install', e => {
+                        e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll([ '${currentUrl}' ])));
+                        self.skipWaiting();
+                    });
+                    self.addEventListener('activate', e => {
+                        e.waitUntil(caches.keys().then(keys => Promise.all(
+                            keys.map(k => { if(k !== CACHE_NAME) return caches.delete(k); })
+                        )));
+                        e.waitUntil(self.clients.claim());
+                    });
+                    self.addEventListener('fetch', e => {
+                        e.respondWith(
+                            fetch(e.request).catch(() => caches.match(e.request, {ignoreSearch:true}).then(res => res || caches.match('${currentUrl}')))
+                        );
+                    });
+                `;
+                const blob = new Blob([swCode], {type: 'application/javascript'});
+                navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+                
+                if ('caches' in window) {
+                    caches.open('ugel-asistencia-v2.0.0').then(cache => cache.add(currentUrl)).catch(()=>{});
+                }
+            }
+        } catch(e) { console.warn('Service Worker bloqueado por seguridad del celular. Continuando sin él.', e); }
 
         // 0.3 Lógica para mostrar el botón de "Instalar App" o "Actualizar App"
         let deferredPrompt;
@@ -366,14 +371,12 @@
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            // Si NO está abierta desde el celular (sino desde el navegador)
             if (!window.matchMedia('(display-mode: standalone)').matches) {
                 btnInstall.innerHTML = '<i class="fa-solid fa-download"></i> Instalar App en Celular';
                 btnInstall.classList.remove('hidden');
             }
         });
 
-        // Si la abrieron directamente desde el ícono instalado en el celular
         if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
             btnInstall.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Actualizar App';
             btnInstall.classList.remove('hidden');
@@ -381,14 +384,14 @@
 
         function installApp() {
             if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
-                // Es "Actualizar App"
                 showToast('Actualizando sistema...', 'info');
-                caches.keys().then(names => {
-                    for (let name of names) caches.delete(name);
-                });
+                if ('caches' in window) {
+                    caches.keys().then(names => {
+                        for (let name of names) caches.delete(name);
+                    });
+                }
                 setTimeout(() => location.reload(true), 1000);
             } else if (deferredPrompt) {
-                // Es "Instalar App"
                 deferredPrompt.prompt();
                 deferredPrompt.userChoice.then((choiceResult) => {
                     if (choiceResult.outcome === 'accepted') {
@@ -399,22 +402,26 @@
             }
         }
 
-        // 0.4 CACHÉ AGRESIVO IA: Guarda la Inteligencia artificial para que no falle sin internet
-        const origFetch = window.fetch;
-        window.fetch = async function(resource, config) {
-            const url = typeof resource === 'string' ? resource : resource.url;
-            if (url && url.includes('weights/')) {
-                const cache = await caches.open('ugel-biometria-v2.0.0');
-                const cached = await cache.match(url);
-                if (cached) return cached; // Devuelve IA al instante desde el celular
-                try {
-                    const res = await origFetch(resource, config);
-                    if (res.ok) cache.put(url, res.clone());
-                    return res;
-                } catch(e) { throw e; }
+        // 0.4 CACHÉ AGRESIVO IA - CORREGIDO PARA EVITAR BLOQUEO DE FETCH
+        try {
+            if ('caches' in window) {
+                const origFetch = window.fetch.bind(window); // BIND EVITA EL ERROR DE INVOCACIÓN ILEGAL
+                window.fetch = async function(resource, config) {
+                    const url = typeof resource === 'string' ? resource : (resource ? resource.url : '');
+                    if (url && url.includes('weights/')) {
+                        try {
+                            const cache = await caches.open('ugel-biometria-v2.0.0');
+                            const cached = await cache.match(url);
+                            if (cached) return cached;
+                            const res = await origFetch(resource, config);
+                            if (res.ok) cache.put(url, res.clone());
+                            return res;
+                        } catch(e) { return origFetch(resource, config); }
+                    }
+                    return origFetch(resource, config);
+                };
             }
-            return origFetch(resource, config);
-        };
+        } catch (e) { console.warn('Interceptor de red bloqueado. Usando modo estándar.', e); }
 
         /* ==========================================================================
            1. CONFIGURACIÓN Y ESTADO GLOBAL
