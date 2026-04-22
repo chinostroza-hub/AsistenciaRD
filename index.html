@@ -31,6 +31,10 @@
             width: 100vw; height: 100vh;
             overflow: hidden; overscroll-behavior: none; touch-action: pan-y;
         }
+        
+        /* ESCUDO DE SEGURIDAD OFFLINE: Si falla Tailwind sin internet, esto fuerza ocultar el cargador */
+        .hidden { display: none !important; }
+        
         .glass-card {
             background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.5); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
@@ -187,11 +191,6 @@
                         <b>Seguridad IA:</b> El sistema requiere tu rostro frente al celular para la validación biométrica. Si tu rostro no coincide con la foto registrada en la base de datos, el acceso será denegado. He leido y acepto los terminos de uso de cámara y tratamiento de mi imagen para el control de asistencia.
                     </p>
                 </div>
-
-                <div class="mt-3 p-2 bg-slate-50/80 rounded-lg border border-slate-200 text-center shadow-sm">
-                    <p class="text-[9px] font-bold text-slate-500">© Copyright Versión 2.0.0 - UGEL Surcubamba</p>
-                </div>
-
             </div>
         </section>
 
@@ -318,7 +317,7 @@
 
     <script>
         /* ==========================================================================
-           0. CONVERTIR WEB A APLICACIÓN NATIVA PWA (PROTECCIÓN DE ERRORES)
+           0. CONVERTIR WEB A APLICACIÓN NATIVA PWA (BLINDAJE OFFLINE TOTAL)
            ========================================================================== */
         
         // 0.1 Generar archivo de Instalación (Manifest) de forma segura
@@ -331,38 +330,62 @@
             const link = document.createElement('link'); link.rel = 'manifest';
             link.href = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
             document.head.appendChild(link);
-        } catch(e) { console.warn('PWA Manifest bloqueado por el navegador.', e); }
+        } catch(e) {}
 
-        // 0.2 Generar Service Worker de Alta Persistencia ENVUELTO EN TRY-CATCH
+        // 0.2 Generar Service Worker de Alta Persistencia a prueba de reinicios
         try {
             if ('serviceWorker' in navigator) {
                 const currentUrl = location.href.split('?')[0];
                 const swCode = `
                     const CACHE_NAME = 'ugel-asistencia-v2.0.0';
+                    const OFFLINE_URL = '${currentUrl}';
+                    const ASSETS = [
+                        OFFLINE_URL,
+                        'https://cdn.tailwindcss.com',
+                        'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css',
+                        'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js'
+                    ];
+
                     self.addEventListener('install', e => {
-                        e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll([ '${currentUrl}' ])));
+                        e.waitUntil(
+                            caches.open(CACHE_NAME).then(cache => {
+                                return Promise.all(
+                                    ASSETS.map(url => fetch(url).then(res => cache.put(url, res)).catch(() => {}))
+                                );
+                            })
+                        );
                         self.skipWaiting();
                     });
+
                     self.addEventListener('activate', e => {
                         e.waitUntil(caches.keys().then(keys => Promise.all(
                             keys.map(k => { if(k !== CACHE_NAME) return caches.delete(k); })
                         )));
                         e.waitUntil(self.clients.claim());
                     });
+
                     self.addEventListener('fetch', e => {
+                        if (e.request.method !== 'GET') return;
+                        if (e.request.url.includes('script.google.com')) return;
+
                         e.respondWith(
-                            fetch(e.request).catch(() => caches.match(e.request, {ignoreSearch:true}).then(res => res || caches.match('${currentUrl}')))
+                            caches.match(e.request).then(cachedRes => {
+                                if (cachedRes) return cachedRes;
+                                return fetch(e.request).then(fetchRes => {
+                                    const clone = fetchRes.clone();
+                                    caches.open(CACHE_NAME).then(cache => cache.put(e.request.url, clone));
+                                    return fetchRes;
+                                }).catch(() => {
+                                    if (e.request.mode === 'navigate') return caches.match(OFFLINE_URL);
+                                });
+                            })
                         );
                     });
                 `;
                 const blob = new Blob([swCode], {type: 'application/javascript'});
                 navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
-                
-                if ('caches' in window) {
-                    caches.open('ugel-asistencia-v2.0.0').then(cache => cache.add(currentUrl)).catch(()=>{});
-                }
             }
-        } catch(e) { console.warn('Service Worker bloqueado por seguridad del celular. Continuando sin él.', e); }
+        } catch(e) {}
 
         // 0.3 Lógica para mostrar el botón de "Instalar App" o "Actualizar App"
         let deferredPrompt;
@@ -371,12 +394,14 @@
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            if (!window.matchMedia('(display-mode: standalone)').matches) {
+            // Si lo abren desde Chrome y NO desde el icono instalado
+            if (!window.matchMedia('(display-mode: standalone)').matches && !window.navigator.standalone) {
                 btnInstall.innerHTML = '<i class="fa-solid fa-download"></i> Instalar App en Celular';
                 btnInstall.classList.remove('hidden');
             }
         });
 
+        // Si lo abren desde el ícono instalado en el celular, mostrar botón de actualizar por si hay cambios
         if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
             btnInstall.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Actualizar App';
             btnInstall.classList.remove('hidden');
@@ -401,27 +426,6 @@
                 });
             }
         }
-
-        // 0.4 CACHÉ AGRESIVO IA - CORREGIDO PARA EVITAR BLOQUEO DE FETCH
-        try {
-            if ('caches' in window) {
-                const origFetch = window.fetch.bind(window); // BIND EVITA EL ERROR DE INVOCACIÓN ILEGAL
-                window.fetch = async function(resource, config) {
-                    const url = typeof resource === 'string' ? resource : (resource ? resource.url : '');
-                    if (url && url.includes('weights/')) {
-                        try {
-                            const cache = await caches.open('ugel-biometria-v2.0.0');
-                            const cached = await cache.match(url);
-                            if (cached) return cached;
-                            const res = await origFetch(resource, config);
-                            if (res.ok) cache.put(url, res.clone());
-                            return res;
-                        } catch(e) { return origFetch(resource, config); }
-                    }
-                    return origFetch(resource, config);
-                };
-            }
-        } catch (e) { console.warn('Interceptor de red bloqueado. Usando modo estándar.', e); }
 
         /* ==========================================================================
            1. CONFIGURACIÓN Y ESTADO GLOBAL
@@ -477,7 +481,7 @@
         window.addEventListener('online', updateOnlineStatus);
         window.addEventListener('offline', updateOnlineStatus);
 
-        // MOTOR INVISIBLE: Revisa la conexión cada 15 segundos y sincroniza
+        // MOTOR INVISIBLE: Revisa la conexión cada 15 segundos y sincroniza si hay registros guardados en el equipo
         setInterval(() => {
             if (navigator.onLine && offlineQueue.length > 0) syncOfflineData();
         }, 15000);
@@ -573,8 +577,12 @@
             clearInterval(progressInterval);
             bar.style.width = '100%'; text.innerText = '100%';
             setTimeout(() => {
-                document.getElementById('global-loader').style.opacity = '0';
-                setTimeout(() => document.getElementById('global-loader').classList.add('hidden'), 500);
+                const loader = document.getElementById('global-loader');
+                loader.style.opacity = '0';
+                setTimeout(() => {
+                    loader.style.display = 'none';
+                    loader.classList.add('hidden');
+                }, 500);
             }, 600);
             updateOnlineStatus();
         }
@@ -781,6 +789,11 @@
             if (!empleadoData.descriptor || empleadoData.descriptor === "undefined") {
                 showToast('Este empleado no tiene foto biométrica registrada. Contactar a RRHH.', 'error'); return;
             }
+            
+            if (typeof faceapi === 'undefined') {
+                showToast('Librería biométrica no encontrada (Sin conexión). Reinstala la App con internet.', 'error');
+                return;
+            }
 
             const btn = document.getElementById('btn-marcar');
             const originalHtml = btn.innerHTML;
@@ -835,7 +848,7 @@
                     updateOnlineStatus();
                 };
 
-                // SI ESTÁ DESCONECTADO (MODO AVIÓN O SIN RED), GUARDA DE INMEDIATO EN EL CELULAR
+                // SI ESTÁ DESCONECTADO, GUARDA DE INMEDIATO EN EL CELULAR
                 if (!navigator.onLine) {
                     saveOffline();
                     return;
