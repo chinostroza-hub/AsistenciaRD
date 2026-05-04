@@ -684,28 +684,45 @@
         }
 
         async function startCamera() {
-            if (cameraStream) return; 
+            if (cameraStream && cameraStream.active) return; 
             try {
                 cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
                 const videoEl = document.getElementById('camera-stream');
                 videoEl.srcObject = cameraStream;
                 videoEl.onloadedmetadata = () => { videoEl.play(); };
                 
-                document.getElementById('cam-status-box').classList.replace('bg-slate-50', 'bg-emerald-50');
-                document.getElementById('cam-status-box').classList.replace('border-slate-200', 'border-emerald-200');
-                document.getElementById('cam-icon-container').classList.replace('bg-slate-100', 'bg-emerald-100');
-                document.getElementById('cam-icon').classList.replace('text-slate-400', 'text-emerald-600');
-                document.getElementById('cam-icon').classList.replace('fa-camera', 'fa-face-viewfinder');
+                // Se corrigió el bug visual reemplazando toda la clase en lugar de buscar colores
+                const box = document.getElementById('cam-status-box');
+                box.className = 'mb-3 rounded-xl p-3 border flex items-start gap-2.5 transition-colors duration-300 bg-emerald-50 border-emerald-200 cursor-default';
+                
+                const iconC = document.getElementById('cam-icon-container');
+                iconC.className = 'mt-0.5 w-7 h-7 rounded-full flex items-center justify-center bg-emerald-100';
+                
+                const icon = document.getElementById('cam-icon');
+                icon.className = 'fa-solid fa-face-viewfinder text-emerald-600';
+                
                 document.getElementById('cam-title').textContent = "Biometría Activada";
                 document.getElementById('cam-desc').textContent = "IA lista para escanear y validar tu rostro en vivo.";
+                box.onclick = null; // Quita el evento de reintento si funcionó
             } catch (err) {
-                document.getElementById('cam-status-box').classList.replace('bg-slate-50', 'bg-red-50');
-                document.getElementById('cam-status-box').classList.replace('border-slate-200', 'border-red-200');
-                document.getElementById('cam-icon-container').classList.replace('bg-slate-100', 'bg-red-100');
-                document.getElementById('cam-icon').classList.replace('text-slate-400', 'text-red-600');
-                document.getElementById('cam-icon').classList.replace('fa-camera', 'fa-eye-slash');
+                cameraStream = null;
+                const box = document.getElementById('cam-status-box');
+                box.className = 'mb-3 rounded-xl p-3 border flex items-start gap-2.5 transition-colors duration-300 bg-red-50 border-red-200 cursor-pointer shadow-sm';
+                
+                const iconC = document.getElementById('cam-icon-container');
+                iconC.className = 'mt-0.5 w-7 h-7 rounded-full flex items-center justify-center bg-red-100';
+                
+                const icon = document.getElementById('cam-icon');
+                icon.className = 'fa-solid fa-eye-slash text-red-600';
+                
                 document.getElementById('cam-title').textContent = "Cámara Bloqueada";
-                document.getElementById('cam-desc').textContent = "Debes dar permiso a la cámara para la validación de identidad.";
+                document.getElementById('cam-desc').textContent = "Toca aquí para dar permiso o recarga la página.";
+                
+                // Convierte el recuadro rojo en un botón para solicitar permiso nuevamente
+                box.onclick = () => {
+                    document.getElementById('cam-desc').textContent = "Solicitando permisos...";
+                    startCamera();
+                };
             }
         }
 
