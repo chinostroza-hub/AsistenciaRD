@@ -373,18 +373,30 @@
                         if (e.request.method !== 'GET') return;
                         if (e.request.url.includes('script.google.com')) return;
 
-                        e.respondWith(
-                            caches.match(e.request).then(cachedRes => {
-                                if (cachedRes) return cachedRes;
-                                return fetch(e.request).then(fetchRes => {
-                                    const clone = fetchRes.clone();
-                                    caches.open(CACHE_NAME).then(cache => cache.put(e.request.url, clone));
-                                    return fetchRes;
+                        // LÓGICA INTELIGENTE: Verifica si hay nueva versión en internet, si no hay señal usa la versión guardada en el celular.
+                        if (e.request.mode === 'navigate') {
+                            e.respondWith(
+                                fetch(e.request).then(fetchRes => {
+                                    return caches.open(CACHE_NAME).then(cache => {
+                                        cache.put(e.request.url, fetchRes.clone());
+                                        return fetchRes;
+                                    });
                                 }).catch(() => {
-                                    if (e.request.mode === 'navigate') return caches.match(OFFLINE_URL);
-                                });
-                            })
-                        );
+                                    return caches.match(OFFLINE_URL);
+                                })
+                            );
+                        } else {
+                            e.respondWith(
+                                caches.match(e.request).then(cachedRes => {
+                                    if (cachedRes) return cachedRes;
+                                    return fetch(e.request).then(fetchRes => {
+                                        const clone = fetchRes.clone();
+                                        caches.open(CACHE_NAME).then(cache => cache.put(e.request.url, clone));
+                                        return fetchRes;
+                                    }).catch(() => {});
+                                })
+                            );
+                        }
                     });
                 `;
                 const blob = new Blob([swCode], {type: 'application/javascript'});
@@ -393,7 +405,7 @@
         } catch(e) {}
 
         // 0.3 Lógica Inteligente para Mostrar Botón de Instalar o Actualizar
-        const APP_VERSION = "1.0.0";
+        const APP_VERSION = "1.0.1";
         let deferredPrompt = null;
         let needsUpdate = false;
         const btnInstall = document.getElementById('btn-install-app');
