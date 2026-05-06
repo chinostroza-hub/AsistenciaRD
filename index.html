@@ -325,7 +325,6 @@
            0. CONVERTIR WEB A APLICACIÓN NATIVA PWA (BLINDAJE OFFLINE TOTAL)
            ========================================================================== */
         
-        // 0.1 Generar archivo de Instalación (Manifest) de forma segura
         try {
             const manifest = {
                 name: "Asistencia UGEL SBBA", short_name: "Asistencia", start_url: location.href.split('?')[0], display: "standalone",
@@ -337,12 +336,11 @@
             document.head.appendChild(link);
         } catch(e) {}
 
-        // 0.2 Generar Service Worker de Alta Persistencia a prueba de reinicios
         try {
             if ('serviceWorker' in navigator) {
                 const currentUrl = location.href.split('?')[0];
                 const swCode = `
-                    const CACHE_NAME = 'ugel-asistencia-v1.0.0';
+                    const CACHE_NAME = 'ugel-asistencia-v1.0.2';
                     const OFFLINE_URL = '${currentUrl}';
                     const ASSETS = [
                         OFFLINE_URL,
@@ -373,7 +371,6 @@
                         if (e.request.method !== 'GET') return;
                         if (e.request.url.includes('script.google.com')) return;
 
-                        // LÓGICA INTELIGENTE: Verifica si hay nueva versión en internet, si no hay señal usa la versión guardada en el celular.
                         if (e.request.mode === 'navigate') {
                             e.respondWith(
                                 fetch(e.request).then(fetchRes => {
@@ -404,8 +401,7 @@
             }
         } catch(e) {}
 
-        // 0.3 Lógica Inteligente para Mostrar Botón de Instalar o Actualizar
-        const APP_VERSION = "1.0.1";
+        const APP_VERSION = "1.0.2";
         let deferredPrompt = null;
         let needsUpdate = false;
         const btnInstall = document.getElementById('btn-install-app');
@@ -418,7 +414,6 @@
         }
 
         function manageInstallButton() {
-            // Solo mostrar si estamos en la vista de Asistencia (Empleado)
             const isEmpleado = !document.getElementById('view-empleado').classList.contains('hidden');
             if (!isEmpleado) {
                 btnInstall.style.display = 'none';
@@ -463,6 +458,26 @@
             }
         }
 
+        try {
+            if ('caches' in window) {
+                const origFetch = window.fetch.bind(window); 
+                window.fetch = async function(resource, config) {
+                    const url = typeof resource === 'string' ? resource : (resource ? resource.url : '');
+                    if (url && url.includes('weights/')) {
+                        try {
+                            const cache = await caches.open('ugel-biometria-v1.0.2');
+                            const cached = await cache.match(url);
+                            if (cached) return cached;
+                            const res = await origFetch(resource, config);
+                            if (res.ok) cache.put(url, res.clone());
+                            return res;
+                        } catch(e) { return origFetch(resource, config); }
+                    }
+                    return origFetch(resource, config);
+                };
+            }
+        } catch (e) { console.warn('Interceptor de red bloqueado. Usando modo estándar.', e); }
+
         /* ==========================================================================
            1. CONFIGURACIÓN Y ESTADO GLOBAL
            ========================================================================== */
@@ -478,11 +493,9 @@
         let securetime_cache = [];
         let editingSedeId = null; 
         
-        // Cola de datos guardados localmente cuando no hay internet
         let offlineQueue = JSON.parse(localStorage.getItem('asistencia_offline_queue') || '[]');
         let isSyncing = false; 
 
-        // ENLACE DE GOOGLE SHEETS
         const gasUrl = 'https://script.google.com/macros/s/AKfycbxfq_kDo7uIQwJ6oIxAxgDNHRT7t8V9jPiBBVqToYYuI884dXgrZsbKqhGWf_2NtPZsmw/exec'; 
 
         const DB = {
@@ -517,7 +530,6 @@
         window.addEventListener('online', updateOnlineStatus);
         window.addEventListener('offline', updateOnlineStatus);
 
-        // MOTOR INVISIBLE: Revisa la conexión cada 15 segundos y sincroniza si hay registros guardados en el equipo
         setInterval(() => {
             if (navigator.onLine && offlineQueue.length > 0) syncOfflineData();
         }, 15000);
@@ -586,23 +598,32 @@
                 arrancarSistemaExitoso(progressInterval, bar, text);
 
             } catch (error) {
-                // RESCATE MODO OFFLINE EXTREMO TRAS REINICIAR EL CELULAR
-                if (localStorage.getItem('offline_master_db')) {
-                    const localData = JSON.parse(localStorage.getItem('offline_master_db'));
-                    sedes = localData.sedes;
-                    personal = localData.personal;
-                    arrancarSistemaExitoso(progressInterval, bar, text);
-                    showToast('Iniciando en Modo Sin Conexión', 'warning');
-                } else {
-                    clearInterval(progressInterval);
-                    document.getElementById('global-loader').innerHTML = `
-                        <i class="fa-solid fa-triangle-exclamation text-red-600 text-6xl mb-4"></i>
-                        <h2 class="text-2xl font-bold text-slate-800">Error Crítico</h2>
-                        <p class="text-sm text-slate-600 mt-2 text-center px-4 max-w-sm">${error.message}</p>
-                        <p class="text-xs text-slate-500 mt-2 text-center px-4 font-bold text-red-700">Debes ingresar por primera vez con internet para descargar el sistema a tu celular.</p>
-                        <button onclick="location.reload()" class="mt-6 px-6 py-3 bg-blue-700 font-bold text-white rounded-full text-sm shadow-lg">Reintentar</button>
-                    `;
+                // BLINDAJE OFFLINE: RESCATE EXTREMO SI NO HAY INTERNET AL REINICIAR
+                try {
+                    const storedDb = localStorage.getItem('offline_master_db');
+                    if (storedDb) {
+                        const localData = JSON.parse(storedDb);
+                        if (localData && localData.sedes && localData.personal) {
+                            sedes = localData.sedes;
+                            personal = localData.personal;
+                            arrancarSistemaExitoso(progressInterval, bar, text);
+                            showToast('Iniciando en Modo Sin Conexión', 'warning');
+                            return; // EVITA QUE SE MUESTRE LA PANTALLA DE ERROR
+                        }
+                    }
+                } catch(rescueError) {
+                    console.warn("Fallo lectura offline", rescueError);
                 }
+
+                // SI LLEGA AQUI, ES PORQUE EL CELULAR NUNCA SE ABRIÓ CON INTERNET
+                clearInterval(progressInterval);
+                document.getElementById('global-loader').innerHTML = `
+                    <i class="fa-solid fa-cloud-arrow-down text-blue-600 text-6xl mb-4 animate-bounce"></i>
+                    <h2 class="text-2xl font-bold text-slate-800">Requiere Sincronización</h2>
+                    <p class="text-sm text-slate-600 mt-2 text-center px-4 max-w-sm">Para que el sistema funcione sin internet en el futuro, debes abrir la aplicación <b>por primera vez con conexión</b> (Wi-Fi o Datos).</p>
+                    <p class="text-xs text-slate-500 mt-3 text-center px-4 font-bold text-red-600">Por favor, conéctate a internet y presiona Reintentar.</p>
+                    <button onclick="location.reload()" class="mt-6 px-8 py-3 bg-blue-700 hover:bg-blue-800 font-bold text-white rounded-full text-sm shadow-lg transition-colors"><i class="fa-solid fa-rotate-right mr-2"></i>Reintentar</button>
+                `;
             }
         });
 
@@ -673,7 +694,7 @@
                 }
             }
             
-            manageInstallButton(); // Control del botón instalador
+            manageInstallButton(); 
         }
 
         function verifyEmployee() {
@@ -703,7 +724,6 @@
                 videoEl.srcObject = cameraStream;
                 videoEl.onloadedmetadata = () => { videoEl.play(); };
                 
-                // Se corrigió el bug visual reemplazando toda la clase en lugar de buscar colores
                 const box = document.getElementById('cam-status-box');
                 box.className = 'mb-3 rounded-xl p-3 border flex items-start gap-2.5 transition-colors duration-300 bg-emerald-50 border-emerald-200 cursor-default';
                 
@@ -715,7 +735,7 @@
                 
                 document.getElementById('cam-title').textContent = "Biometría Activada";
                 document.getElementById('cam-desc').textContent = "IA lista para escanear y validar tu rostro en vivo.";
-                box.onclick = null; // Quita el evento de reintento si funcionó
+                box.onclick = null; 
             } catch (err) {
                 cameraStream = null;
                 const box = document.getElementById('cam-status-box');
@@ -730,7 +750,6 @@
                 document.getElementById('cam-title').textContent = "Cámara Bloqueada";
                 document.getElementById('cam-desc').textContent = "Toca aquí para dar permiso o recarga la página.";
                 
-                // Convierte el recuadro rojo en un botón para solicitar permiso nuevamente
                 box.onclick = () => {
                     document.getElementById('cam-desc').textContent = "Solicitando permisos...";
                     startCamera();
@@ -904,7 +923,6 @@
                     updateOnlineStatus();
                 };
 
-                // SI ESTÁ DESCONECTADO, GUARDA DE INMEDIATO EN EL CELULAR
                 if (!navigator.onLine) {
                     saveOffline();
                     return;
@@ -922,7 +940,6 @@
                 }
 
             } catch (error) {
-                // CAPTURA FALSOS POSITIVOS DE INTERNET (MALA SEÑAL RURAL)
                 if (payload && (error.message.includes('Sin conexión') || error.message.includes('Failed to fetch') || error.message.includes('NetworkError'))) {
                     offlineQueue.push(payload);
                     localStorage.setItem('asistencia_offline_queue', JSON.stringify(offlineQueue));
@@ -943,7 +960,6 @@
             }
         }
 
-        /* LÓGICA AUTOMÁTICA PARA SINCRONIZAR LOS DATOS PENDIENTES AL VOLVER EL INTERNET */
         async function syncOfflineData() {
             if (offlineQueue.length === 0 || !navigator.onLine || isSyncing) return;
             isSyncing = true;
@@ -958,7 +974,7 @@
                     await DB.run('guardarAsistencia', data);
                     syncCount++;
                 } catch (e) {
-                    failedQueue.push(data); // Si falla uno en particular, lo guardamos para reintentar luego
+                    failedQueue.push(data); 
                 }
             }
             
