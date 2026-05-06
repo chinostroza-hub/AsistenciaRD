@@ -32,7 +32,7 @@
             overflow: hidden; overscroll-behavior: none; touch-action: pan-y;
         }
         
-        /* ESCUDO DE SEGURIDAD OFFLINE: Si falla Tailwind sin internet, esto fuerza ocultar el cargador */
+        /* ESCUDO DE SEGURIDAD OFFLINE */
         .hidden { display: none !important; }
         
         .glass-card {
@@ -336,72 +336,79 @@
             document.head.appendChild(link);
         } catch(e) {}
 
+        // GENERADOR DE SERVICE WORKER FÍSICO/VIRTUAL
         try {
             if ('serviceWorker' in navigator) {
-                const currentUrl = location.href.split('?')[0];
-                const swCode = `
-                    const CACHE_NAME = 'ugel-asistencia-v1.0.2';
-                    const OFFLINE_URL = '${currentUrl}';
-                    const ASSETS = [
-                        OFFLINE_URL,
-                        'https://cdn.tailwindcss.com',
-                        'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css',
-                        'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js'
-                    ];
+                // Primero intentamos buscar si tienes un sw.js real (Ver paso 2 abajo)
+                navigator.serviceWorker.register('sw.js').then(() => {
+                    console.log("Service Worker Físico Registrado");
+                }).catch(() => {
+                    // Si no existe, usamos el fallback en Blob (Para evitar que explote)
+                    const currentUrl = location.href.split('?')[0];
+                    const swCode = `
+                        const CACHE_NAME = 'ugel-asistencia-v1.0.3';
+                        const OFFLINE_URL = '${currentUrl}';
+                        const ASSETS = [
+                            OFFLINE_URL,
+                            'https://cdn.tailwindcss.com',
+                            'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css',
+                            'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js'
+                        ];
 
-                    self.addEventListener('install', e => {
-                        e.waitUntil(
-                            caches.open(CACHE_NAME).then(cache => {
-                                return Promise.all(
-                                    ASSETS.map(url => fetch(url).then(res => cache.put(url, res)).catch(() => {}))
+                        self.addEventListener('install', e => {
+                            e.waitUntil(
+                                caches.open(CACHE_NAME).then(cache => {
+                                    return Promise.all(
+                                        ASSETS.map(url => fetch(url).then(res => cache.put(url, res)).catch(() => {}))
+                                    );
+                                })
+                            );
+                            self.skipWaiting();
+                        });
+
+                        self.addEventListener('activate', e => {
+                            e.waitUntil(caches.keys().then(keys => Promise.all(
+                                keys.map(k => { if(k !== CACHE_NAME) return caches.delete(k); })
+                            )));
+                            e.waitUntil(self.clients.claim());
+                        });
+
+                        self.addEventListener('fetch', e => {
+                            if (e.request.method !== 'GET') return;
+                            if (e.request.url.includes('script.google.com')) return;
+
+                            if (e.request.mode === 'navigate') {
+                                e.respondWith(
+                                    fetch(e.request).then(fetchRes => {
+                                        return caches.open(CACHE_NAME).then(cache => {
+                                            cache.put(e.request.url, fetchRes.clone());
+                                            return fetchRes;
+                                        });
+                                    }).catch(() => {
+                                        return caches.match(OFFLINE_URL);
+                                    })
                                 );
-                            })
-                        );
-                        self.skipWaiting();
-                    });
-
-                    self.addEventListener('activate', e => {
-                        e.waitUntil(caches.keys().then(keys => Promise.all(
-                            keys.map(k => { if(k !== CACHE_NAME) return caches.delete(k); })
-                        )));
-                        e.waitUntil(self.clients.claim());
-                    });
-
-                    self.addEventListener('fetch', e => {
-                        if (e.request.method !== 'GET') return;
-                        if (e.request.url.includes('script.google.com')) return;
-
-                        if (e.request.mode === 'navigate') {
-                            e.respondWith(
-                                fetch(e.request).then(fetchRes => {
-                                    return caches.open(CACHE_NAME).then(cache => {
-                                        cache.put(e.request.url, fetchRes.clone());
-                                        return fetchRes;
-                                    });
-                                }).catch(() => {
-                                    return caches.match(OFFLINE_URL);
-                                })
-                            );
-                        } else {
-                            e.respondWith(
-                                caches.match(e.request).then(cachedRes => {
-                                    if (cachedRes) return cachedRes;
-                                    return fetch(e.request).then(fetchRes => {
-                                        const clone = fetchRes.clone();
-                                        caches.open(CACHE_NAME).then(cache => cache.put(e.request.url, clone));
-                                        return fetchRes;
-                                    }).catch(() => {});
-                                })
-                            );
-                        }
-                    });
-                `;
-                const blob = new Blob([swCode], {type: 'application/javascript'});
-                navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+                            } else {
+                                e.respondWith(
+                                    caches.match(e.request).then(cachedRes => {
+                                        if (cachedRes) return cachedRes;
+                                        return fetch(e.request).then(fetchRes => {
+                                            const clone = fetchRes.clone();
+                                            caches.open(CACHE_NAME).then(cache => cache.put(e.request.url, clone));
+                                            return fetchRes;
+                                        }).catch(() => {});
+                                    })
+                                );
+                            }
+                        });
+                    `;
+                    const blob = new Blob([swCode], {type: 'application/javascript'});
+                    navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+                });
             }
         } catch(e) {}
 
-        const APP_VERSION = "1.0.2";
+        const APP_VERSION = "1.0.3";
         let deferredPrompt = null;
         let needsUpdate = false;
         const btnInstall = document.getElementById('btn-install-app');
@@ -465,7 +472,7 @@
                     const url = typeof resource === 'string' ? resource : (resource ? resource.url : '');
                     if (url && url.includes('weights/')) {
                         try {
-                            const cache = await caches.open('ugel-biometria-v1.0.2');
+                            const cache = await caches.open('ugel-biometria-v1.0.3');
                             const cached = await cache.match(url);
                             if (cached) return cached;
                             const res = await origFetch(resource, config);
@@ -764,7 +771,8 @@
 
             gpsWatchId = navigator.geolocation.watchPosition(
                 (position) => {
-                    if (position.coords.accuracy > 1000) {
+                    // Tolerancia ampliada a 2500 metros sin internet para evitar bloqueos en zonas rurales profundas
+                    if (position.coords.accuracy > 2500) {
                         updateGPSUI('warning', 'Calibrando GPS Real...', `Buscando satélites (Precisión baja: ${Math.round(position.coords.accuracy)}m). Sal a cielo abierto.`);
                         disableButtons();
                         return; 
@@ -923,6 +931,7 @@
                     updateOnlineStatus();
                 };
 
+                // SI ESTÁ DESCONECTADO, GUARDA DE INMEDIATO EN EL CELULAR
                 if (!navigator.onLine) {
                     saveOffline();
                     return;
@@ -940,6 +949,7 @@
                 }
 
             } catch (error) {
+                // CAPTURA FALSOS POSITIVOS DE INTERNET (MALA SEÑAL RURAL)
                 if (payload && (error.message.includes('Sin conexión') || error.message.includes('Failed to fetch') || error.message.includes('NetworkError'))) {
                     offlineQueue.push(payload);
                     localStorage.setItem('asistencia_offline_queue', JSON.stringify(offlineQueue));
@@ -960,6 +970,7 @@
             }
         }
 
+        /* LÓGICA AUTOMÁTICA PARA SINCRONIZAR LOS DATOS PENDIENTES AL VOLVER EL INTERNET */
         async function syncOfflineData() {
             if (offlineQueue.length === 0 || !navigator.onLine || isSyncing) return;
             isSyncing = true;
@@ -974,7 +985,7 @@
                     await DB.run('guardarAsistencia', data);
                     syncCount++;
                 } catch (e) {
-                    failedQueue.push(data); 
+                    failedQueue.push(data); // Si falla uno en particular, lo guardamos para reintentar luego
                 }
             }
             
