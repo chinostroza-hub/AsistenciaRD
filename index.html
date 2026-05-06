@@ -291,7 +291,7 @@
 
     <!-- Footer (Copyright) SIEMPRE VISIBLE -->
     <div class="fixed bottom-3 left-0 right-0 w-full text-center z-[990] pointer-events-none">
-        <p class="text-[10px] font-bold text-slate-600 bg-white/70 backdrop-blur-sm inline-block px-4 py-1.5 rounded-full shadow-sm border border-slate-200/50">© Copyright Versión 1.0.0 - UGEL Surcubamba</p>
+        <p class="text-[10px] font-bold text-slate-600 bg-white/70 backdrop-blur-sm inline-block px-4 py-1.5 rounded-full shadow-sm border border-slate-200/50">© Copyright Versión 1.0.4 - UGEL Surcubamba</p>
     </div>
 
     <!-- Modal Flotante de Términos y Condiciones -->
@@ -336,79 +336,16 @@
             document.head.appendChild(link);
         } catch(e) {}
 
-        // GENERADOR DE SERVICE WORKER FÍSICO/VIRTUAL
+        // REGISTRO LIMPIO Y DIRECTO DEL SERVICE WORKER FÍSICO
         try {
             if ('serviceWorker' in navigator) {
-                // Primero intentamos buscar si tienes un sw.js real (Ver paso 2 abajo)
-                navigator.serviceWorker.register('sw.js').then(() => {
-                    console.log("Service Worker Físico Registrado");
-                }).catch(() => {
-                    // Si no existe, usamos el fallback en Blob (Para evitar que explote)
-                    const currentUrl = location.href.split('?')[0];
-                    const swCode = `
-                        const CACHE_NAME = 'ugel-asistencia-v1.0.3';
-                        const OFFLINE_URL = '${currentUrl}';
-                        const ASSETS = [
-                            OFFLINE_URL,
-                            'https://cdn.tailwindcss.com',
-                            'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css',
-                            'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js'
-                        ];
-
-                        self.addEventListener('install', e => {
-                            e.waitUntil(
-                                caches.open(CACHE_NAME).then(cache => {
-                                    return Promise.all(
-                                        ASSETS.map(url => fetch(url).then(res => cache.put(url, res)).catch(() => {}))
-                                    );
-                                })
-                            );
-                            self.skipWaiting();
-                        });
-
-                        self.addEventListener('activate', e => {
-                            e.waitUntil(caches.keys().then(keys => Promise.all(
-                                keys.map(k => { if(k !== CACHE_NAME) return caches.delete(k); })
-                            )));
-                            e.waitUntil(self.clients.claim());
-                        });
-
-                        self.addEventListener('fetch', e => {
-                            if (e.request.method !== 'GET') return;
-                            if (e.request.url.includes('script.google.com')) return;
-
-                            if (e.request.mode === 'navigate') {
-                                e.respondWith(
-                                    fetch(e.request).then(fetchRes => {
-                                        return caches.open(CACHE_NAME).then(cache => {
-                                            cache.put(e.request.url, fetchRes.clone());
-                                            return fetchRes;
-                                        });
-                                    }).catch(() => {
-                                        return caches.match(OFFLINE_URL);
-                                    })
-                                );
-                            } else {
-                                e.respondWith(
-                                    caches.match(e.request).then(cachedRes => {
-                                        if (cachedRes) return cachedRes;
-                                        return fetch(e.request).then(fetchRes => {
-                                            const clone = fetchRes.clone();
-                                            caches.open(CACHE_NAME).then(cache => cache.put(e.request.url, clone));
-                                            return fetchRes;
-                                        }).catch(() => {});
-                                    })
-                                );
-                            }
-                        });
-                    `;
-                    const blob = new Blob([swCode], {type: 'application/javascript'});
-                    navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
-                });
+                navigator.serviceWorker.register('./sw.js').then(() => {
+                    console.log("Service Worker Físico Registrado Correctamente");
+                }).catch((err) => console.log("Error en SW:", err));
             }
         } catch(e) {}
 
-        const APP_VERSION = "1.0.3";
+        const APP_VERSION = "1.0.4";
         let deferredPrompt = null;
         let needsUpdate = false;
         const btnInstall = document.getElementById('btn-install-app');
