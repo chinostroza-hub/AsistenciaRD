@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ugel-asistencia-v1.0.3';
+const CACHE_NAME = 'ugel-asistencia-v1.0.4';
 const ASSETS = [
     'asistencia.html',
     'https://cdn.tailwindcss.com',
