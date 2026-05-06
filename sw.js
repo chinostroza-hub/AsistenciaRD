@@ -1,0 +1,5 @@
+const CACHE_NAME = 'ugel-asistencia-v1.0.3';
+self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll([ 'asistencia.html', 'https://cdn.tailwindcss.com', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css', 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js' ]))); self.skipWaiting(); });
+self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(k => Promise.all(k.map(key => { if(key !== CACHE_NAME) return caches.delete(key); })))); self.clients.claim(); });
+self.addEventListener('fetch', e => { if (e.request.method !== 'GET' || e.request.url.includes('script.google.com')) return; e.respondWith(caches.match(e.request).then(res => res || fetch(e.request).then(fRes => caches.open(CACHE_NAME).then(c => { c.put(e.request.url, fRes.clone()); return fRes; })).catch(() => caches.match('asistencia.html')))); });
+*Una vez que agregues este pequeño archivo en GitHub, ¡la aplicación de Asistencia sobrevivirá eternamente en los celulares así los apaguen todo el mes!*
